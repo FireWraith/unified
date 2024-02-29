@@ -8,7 +8,6 @@ using namespace NWNXLib::API;
 
 static bool s_printString;
 static bool s_hideValidateGFFResourceMessage = Config::Get<bool>("HIDE_VALIDATEGFFRESOURCE_MESSAGES", false);
-static bool s_hideEventAddedWhilePausedMessage = Config::Get<bool>("HIDE_EVENT_ADDED_WHILE_PAUSED_MESSAGES", false);
 
 inline std::string TrimMessage(CExoString* message)
 {
@@ -29,16 +28,18 @@ static Hooks::Hook s_WriteToLogFileHook = Hooks::HookFunction((void*)&CExoDebugI
     +[](CExoDebugInternal *pExoDebugInternal, CExoString* message) -> void
     {
         std::string str = TrimMessage(message);
-        bool bHideMessage = false;
 
-        if (s_hideValidateGFFResourceMessage && str.find("*** ValidateGFFResource sent by user.") != std::string::npos)
-            bHideMessage = true;
-
-        if (s_hideEventAddedWhilePausedMessage && str.find("Event added while paused:  EventId: ") != std::string::npos)
-            bHideMessage = true;
-        
-        if(!bHideMessage)
+        if (s_hideValidateGFFResourceMessage)
+        {
+            if(str.find("*** ValidateGFFResource sent by user.") == std::string::npos)
+            {
+                LOG_INFO("(Server) %s", str);
+            }
+        }
+        else
+        {
             LOG_INFO("(Server) %s", str);
+        }
 
         s_WriteToLogFileHook->CallOriginal<void>(pExoDebugInternal, message);
     }, Hooks::Order::VeryEarly);
