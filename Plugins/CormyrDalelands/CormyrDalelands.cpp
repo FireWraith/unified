@@ -35,17 +35,6 @@ using namespace NWNXLib::API;
 
 namespace CormyrDalelands {
 
-<<<<<<< HEAD
-const int32_t ITEM_PROPERTY_GHOST_TOUCH_WEAPON = 213;
-
-const uint8_t CLASS_TYPE_TEMPEST = 86;
-const uint16_t FEAT_TEMPEST_AMBIDEXTERITY_1 = 2483;
-const uint16_t FEAT_TEMPEST_AMBIDEXTERITY_2 = 2486;
-
-std::unordered_map<std::uint16_t, int8_t> m_ACNaturalBaseModifierFeats;
-
-std::set<std::uint16_t> m_DefaultSneakAttackFeats = {
-=======
 const static int32_t ITEM_PROPERTY_GHOST_TOUCH_WEAPON = 213;
 
 const static uint8_t CLASS_TYPE_TEMPEST = 86;
@@ -55,7 +44,6 @@ const static uint16_t FEAT_TEMPEST_AMBIDEXTERITY_2 = 2486;
 static std::unordered_map<std::uint16_t, int8_t> m_ACNaturalBaseModifierFeats;
 
 static std::set<std::uint16_t> m_DefaultSneakAttackFeats = {
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
     Constants::Feat::SneakAttack,
     Constants::Feat::SneakAttack2,
     Constants::Feat::SneakAttack3,
@@ -102,15 +90,9 @@ static std::set<std::uint16_t> m_DefaultSneakAttackFeats = {
     Constants::Feat::EpicImprovedSneakAttack9,
     Constants::Feat::EpicImprovedSneakAttack10
 };
-<<<<<<< HEAD
-std::set<std::uint16_t> m_SneakAttackFeats = m_DefaultSneakAttackFeats;
-
-std::set<std::uint16_t> m_DefaultDeathAttackFeats = {
-=======
 static std::set<std::uint16_t> m_SneakAttackFeats = m_DefaultSneakAttackFeats;
 
 static std::set<std::uint16_t> m_DefaultDeathAttackFeats = {
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
     Constants::Feat::PrestigeDeathAttack1,
     Constants::Feat::PrestigeDeathAttack2,
     Constants::Feat::PrestigeDeathAttack3,
@@ -132,34 +114,20 @@ static std::set<std::uint16_t> m_DefaultDeathAttackFeats = {
     Constants::Feat::PrestigeDeathAttack19,
     Constants::Feat::PrestigeDeathAttack20
 };
-<<<<<<< HEAD
-std::set<std::uint16_t> m_DeathAttackFeats = m_DefaultDeathAttackFeats;
-
-std::set<std::uint8_t> m_SneakAttackUncannyDodgeClasses = {
-=======
 static std::set<std::uint16_t> m_DeathAttackFeats = m_DefaultDeathAttackFeats;
 
 static std::set<std::uint8_t> m_SneakAttackUncannyDodgeClasses = {
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
     Constants::ClassType::Barbarian,
     Constants::ClassType::Rogue,
     Constants::ClassType::Assassin,
     Constants::ClassType::Shadowdancer
 };
 
-<<<<<<< HEAD
-std::set<std::uint8_t> m_BardSongUsesProgressingClasses = {
-    Constants::ClassType::Bard
-};
-
-std::set<std::uint32_t> m_BaseItemsAllowUseUnequipped;
-=======
 static std::set<std::uint8_t> m_BardSongUsesProgressingClasses = {
     Constants::ClassType::Bard
 };
 
 static std::set<std::uint32_t> m_BaseItemsAllowUseUnequipped;
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
 
 static bool s_InResolveDefensiveEffectsWithGhostTouchWeapon;
 static bool s_OverrideSneakAttackDamageRoll;
@@ -224,16 +192,12 @@ void GhostTouchWeaponProperty()
         {
             if (s_InResolveDefensiveEffectsWithGhostTouchWeapon)
             {
-<<<<<<< HEAD
-                if (label == "INVISIBILITY_CONCEALMENT_CHANCE" || label.Left(22) == "EPIC_SELF_CONCEALMENT_")
-=======
                 if (hashedLabel == CRULES_HASHEDSTR("INVISIBILITY_CONCEALMENT_CHANCE") ||
                     hashedLabel == CRULES_HASHEDSTR("EPIC_SELF_CONCEALMENT_10") ||
                     hashedLabel == CRULES_HASHEDSTR("EPIC_SELF_CONCEALMENT_20") ||
                     hashedLabel == CRULES_HASHEDSTR("EPIC_SELF_CONCEALMENT_30") ||
                     hashedLabel == CRULES_HASHEDSTR("EPIC_SELF_CONCEALMENT_40") ||
                     hashedLabel == CRULES_HASHEDSTR("EPIC_SELF_CONCEALMENT_50"))
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
                     return 0;
             }
 
@@ -1061,11 +1025,7 @@ void ExtendEffectACBonusTypes()
 
     LOG_INFO("Enabled AC_BASE_BONUS=5 AC bonus type for EffectACIncrease and EffectACDecrease");
 
-<<<<<<< HEAD
-    static Hooks::Hook s_ExecuteCommandEffectACIncreaseHook = Hooks::HookFunction(&CNWVirtualMachineCommands::ExecuteCommandEffectACIncrease,
-=======
     static Hooks::Hook s_ExecuteCommandEffectACIncreaseHook = Hooks::HookFunction(&CNWSVirtualMachineCommands::ExecuteCommandEffectACIncrease,
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
         +[](CNWSVirtualMachineCommands *pThis, int32_t nCommandId, int32_t nParameters) -> int32_t
         {
             auto *pVM = Globals::VirtualMachine();
@@ -1104,11 +1064,7 @@ void ExtendEffectACBonusTypes()
             return s_ExecuteCommandEffectACIncreaseHook->CallOriginal<int32_t>(pThis, nCommandId, nParameters);
         }, Hooks::Order::Late);
 
-<<<<<<< HEAD
-    static Hooks::Hook s_ExecuteCommandEffectACDecreaseHook = Hooks::HookFunction(&CNWVirtualMachineCommands::ExecuteCommandEffectACDecrease,
-=======
     static Hooks::Hook s_ExecuteCommandEffectACDecreaseHook = Hooks::HookFunction(&CNWSVirtualMachineCommands::ExecuteCommandEffectACDecrease,
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
         +[](CNWSVirtualMachineCommands *pThis, int32_t nCommandId, int32_t nParameters) -> int32_t
         {
             auto *pVM = Globals::VirtualMachine();
@@ -1239,56 +1195,34 @@ void DisableItemRestrictionProperties()
         }, Hooks::Order::Final);
 }
 
-<<<<<<< HEAD
-NWNX_EXPORT ArgumentStack GetRulesetFloatEntry(CRULES_HASHEDSTR(ArgumentStack&&) args)
-=======
 NWNX_EXPORT ArgumentStack GetRulesetFloatEntry(ArgumentStack&& args)
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
 {
     const auto sEntry = args.extract<std::string>();
       ASSERT_OR_THROW(!sEntry.empty());
 
     const auto fDefault = args.extract<float>();
 
-<<<<<<< HEAD
-    return Globals::Rules()->GetRulesetFloatEntry(sEntry, fDefault);
-}
-
-NWNX_EXPORT ArgumentStack GetRulesetIntEntry(CRULES_HASHEDSTR(ArgumentStack&&) args)
-=======
     return Globals::Rules()->GetRulesetFloatEntry(CRULES_HASHEDSTR(sEntry.c_str()), fDefault);
 }
 
 NWNX_EXPORT ArgumentStack GetRulesetIntEntry(ArgumentStack&& args)
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
 {
     const auto sEntry = args.extract<std::string>();
       ASSERT_OR_THROW(!sEntry.empty());
 
     const auto nDefault = args.extract<int32_t>();
 
-<<<<<<< HEAD
-    return Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR(sEntry), nDefault);
-}
-
-NWNX_EXPORT ArgumentStack GetRulesetStringEntry(CRULES_HASHEDSTR(ArgumentStack&&) args)
-=======
     return Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR(sEntry.c_str()), nDefault);
 }
 
 NWNX_EXPORT ArgumentStack GetRulesetStringEntry(ArgumentStack&& args)
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
 {
     const auto sEntry = args.extract<std::string>();
       ASSERT_OR_THROW(!sEntry.empty());
 
     const auto sDefault = args.extract<std::string>();
 
-<<<<<<< HEAD
-    return Globals::Rules()->GetRulesetStringEntry(CRULES_HASHEDSTR(sEntry), sDefault);
-=======
     return Globals::Rules()->GetRulesetStringEntry(CRULES_HASHEDSTR(sEntry.c_str()), sDefault.c_str());
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
 }
 
 void TempestAmbidexterity() __attribute__((constructor));
@@ -1301,17 +1235,6 @@ void TempestAmbidexterity()
 
     static Hooks::Hook s_GetRulesetIntEntryHook =
         Hooks::HookFunction(&CNWRules::GetRulesetIntEntry,
-<<<<<<< HEAD
-        +[](CNWRules *pThis, const CExoString &label, int32_t whenMissing) -> int32_t
-        {
-            auto retval = s_GetRulesetIntEntryHook->CallOriginal<int32_t>(pThis, hashedlabel, whenMissing);
-
-            if (hashedLabel == "TWO_WEAPON_FIGHTING_BONUS" && s_TempestAmbidexterityModifier > 0)
-                retval += s_TempestAmbidexterityModifier;
-
-            LOG_DEBUG("TWO_WEAPON_FIGHTING_BONUS %d", retval);
-
-=======
         +[](CNWRules *pThis, uint64_t hashedLabel, int32_t whenMissing) -> int32_t
         {
             auto retval = s_GetRulesetIntEntryHook->CallOriginal<int32_t>(pThis, hashedLabel, whenMissing);
@@ -1319,7 +1242,6 @@ void TempestAmbidexterity()
             if (hashedLabel == CRULES_HASHEDSTR("TWO_WEAPON_FIGHTING_BONUS") && s_TempestAmbidexterityModifier > 0)
                 retval += s_TempestAmbidexterityModifier;
 
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
             return retval;
         }, Hooks::Order::Late);
 
@@ -1438,8 +1360,4 @@ NWNX_EXPORT ArgumentStack SetUseBaseItemTypeUnequippedAllowed(ArgumentStack&& ar
     return {};
 }
 
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 91805a0447857cac1da616162ffa3bb367692ac1
