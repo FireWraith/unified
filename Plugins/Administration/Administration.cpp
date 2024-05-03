@@ -123,7 +123,7 @@ NWNX_EXPORT ArgumentStack DeletePlayerCharacter(ArgumentStack&& args)
     }
     else
     {
-        playerdir = exoApp->GetNetLayer()->GetPlayerInfo(playerId)->m_lstKeys.element[0].sPublic.CStr();
+        playerdir = exoApp->GetNetLayer()->GetPlayerInfo(playerId)->m_cCDKey.sPublic.CStr();
     }
 
     std::string filename = servervault + playerdir + "/" + bicname + ".bic";
@@ -267,8 +267,6 @@ NWNX_EXPORT ArgumentStack GetPlayOption(ArgumentStack&& args)
 
     const auto option = args.extract<int32_t>();
 
-    ASSERT_OR_THROW(option >= 0); ASSERT_OR_THROW(option <= 26);
-
     switch (option)
     {
         case 0: // NWNX_ADMINISTRATION_OPTION_ALL_KILLABLE
@@ -400,7 +398,6 @@ NWNX_EXPORT ArgumentStack SetPlayOption(ArgumentStack&& args)
     const auto option = args.extract<int32_t>();
     const auto value = args.extract<int32_t>();
 
-    ASSERT_OR_THROW(option >= 0); ASSERT_OR_THROW(option <= 26);
     ASSERT_OR_THROW(value >= 0);
 
     switch (option)

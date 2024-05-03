@@ -11,13 +11,21 @@ https://github.com/nwnxee/unified/compare/build8193.36.12...HEAD
 - N/A
 
 ##### New Plugins
-- N/A
+- Store: Enables getting and setting store data.
 
 ##### New NWScript Functions
-- N/A
+- Util: GetModuleTlkFile()
+- Object: {Set|Get}LocalizedName()
+- Store: GetIsRestrictedBuyItem()
+- Store: {Get|Set}BlackMarketMarkDown()
+- Store: {Get|Set}MarkDown()
+- Store: {Get|Set}MarkUp()
+- Player: ReloadTlk()
+- Player: ReloadColorPalettes()
 
 ### Changed
-- N/A
+- Player: added bChatWindow parameter to FloatingTextStringOnCreature() 
+- Damage: added iSpellId to the NWNX_Damage_DamageEventData struct.
 
 ### Deprecated
 - N/A
