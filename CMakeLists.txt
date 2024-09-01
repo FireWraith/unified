@@ -20,13 +20,18 @@ find_package(Sanitizers)
 execute_process(COMMAND git rev-parse --short HEAD OUTPUT_STRIP_TRAILING_WHITESPACE OUTPUT_VARIABLE SHORT_HASH)
 set(TARGET_NWN_BUILD 8193)
 set(TARGET_NWN_BUILD_REVISION 37)
-set(TARGET_NWN_BUILD_POSTFIX 2)
+set(TARGET_NWN_BUILD_POSTFIX 7)
 set(NWNX_BUILD_SHA ${SHORT_HASH})
 set(PLUGIN_PREFIX NWNX_)
 
 # Adds the provided shared library, then builds it with a NWNX_ prefix.
 function(add_plugin target)
     add_library(${target} MODULE ${ARGN})
+    configure_plugin(${target})
+endfunction()
+
+function(add_shared_plugin target)
+    add_library(${target} SHARED ${ARGN})
     configure_plugin(${target})
 endfunction()
 

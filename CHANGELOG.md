@@ -8,10 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 https://github.com/nwnxee/unified/compare/build8193.36.12...HEAD
 
 ### Added
-- N/A
+- DotNET: Added `NWNX_DOTNET_METHOD` option to change entrypoint method (default: `Bootstrap`)
+- DotNET: Added `NWNX_DOTNET_NEW_BOOTSTRAP` option to enable a new bootstrap method with less boilerplate code.
+- DotNET: Added `RequestFunctionHook`, `ReturnFunctionHook`.
 
 ##### New Plugins
 - Store: Enables getting and setting store data.
+- HTTPClient: Perform HTTP Action like POST and GET and return responses.
 
 ##### New NWScript Functions
 - Util: GetModuleTlkFile()
@@ -26,9 +29,12 @@ https://github.com/nwnxee/unified/compare/build8193.36.12...HEAD
 ### Changed
 - Player: added bChatWindow parameter to FloatingTextStringOnCreature() 
 - Damage: added iSpellId to the NWNX_Damage_DamageEventData struct.
+- Docker: Add dotnet-runtime-8.0, dotnet-apphost-pack-8.0 packages.
+- Item: Added parameter `bUpdateCreatureAppearance` to SetItemAppearance() to update the appearance of the item's possessor.
 
 ### Deprecated
-- N/A
+- DotNET: GetFunctionPointer()
+- DotNET: GetNWNXExportedGlobals()
 
 ### Removed
 - N/A
