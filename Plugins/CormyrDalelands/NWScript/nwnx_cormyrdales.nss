@@ -2,7 +2,6 @@
 /// @brief Cormyr and the Dalelands NWNX plugin
 /// @{
 /// @file nwnx_cormyrdales.nss
-#include "nwnx"
 
 const string NWNX_CormyrDalelands = "NWNX_CormyrDalelands"; ///< @private
 
@@ -76,123 +75,97 @@ void NWNX_CormyrDalelands_SetUseBaseItemTypeUnequippedAllowed(int nBaseItemType,
 
 int NWNX_CormyrDalelands_GetCreatureIncorporealFlag(object oCreature)
 {
-    string sFunc = "GetCreatureIncorporealFlag";
+    NWNXPushObject(oCreature);
+    NWNXCall(NWNX_CormyrDalelands, "GetCreatureIncorporealFlag");
 
-    NWNX_PushArgumentObject(oCreature);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
-
-    return NWNX_GetReturnValueInt();
+    return NWNXPopInt();
 }
 
 void NWNX_CormyrDalelands_SetCreatureIncorporealFlag(object oCreature, int bIsIncorporeal)
 {
-    string sFunc = "SetCreatureIncorporealFlag";
-
-    NWNX_PushArgumentInt(bIsIncorporeal);
-    NWNX_PushArgumentObject(oCreature);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
+    NWNXPushInt(bIsIncorporeal);
+    NWNXPushObject(oCreature);
+    NWNXCall(NWNX_CormyrDalelands, "SetCreatureIncorporealFlag");
 }
 
 void NWNX_CormyrDalelands_SetClassIsSneakAttackUncannyDodgeClass(int nClassID, int bIsUncannyDodgeClass = TRUE)
 {
-    string sFunc = "SetClassIsSneakAttackUncannyDodgeClass";
-    
-    NWNX_PushArgumentInt(bIsUncannyDodgeClass);
-    NWNX_PushArgumentInt(nClassID);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
+    NWNXPushInt(bIsUncannyDodgeClass);
+    NWNXPushInt(nClassID);
+    NWNXCall(NWNX_CormyrDalelands, "SetClassIsSneakAttackUncannyDodgeClass");
 }
 
 void NWNX_CormyrDalelands_SetFeatIsSneakAttackFeat(int nFeat, int bIsSneakAttackFeat = TRUE)
 {
-    string sFunc = "SetFeatIsSneakAttackFeat";
-    
-    NWNX_PushArgumentInt(bIsSneakAttackFeat);
-    NWNX_PushArgumentInt(nFeat);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
+    NWNXPushInt(bIsSneakAttackFeat);
+    NWNXPushInt(nFeat);
+    NWNXCall(NWNX_CormyrDalelands, "SetFeatIsSneakAttackFeat");
 }
 
 void NWNX_CormyrDalelands_SetFeatIsDeathAttackFeat(int nFeat, int bIsDeathAttackFeat = TRUE)
 {
-    string sFunc = "SetFeatIsDeathAttackFeat";
-    
-    NWNX_PushArgumentInt(bIsDeathAttackFeat);
-    NWNX_PushArgumentInt(nFeat);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
+    NWNXPushInt(bIsDeathAttackFeat);
+    NWNXPushInt(nFeat);
+    NWNXCall(NWNX_CormyrDalelands, "SetFeatIsDeathAttackFeat");
 }
 
 void NWNX_CormyrDalelands_SetNaturalBaseACModifierFeat(int nFeatID, int nModifier)
 {
-    string sFunc = "SetNaturalBaseACModifierFeat";
-    
-    NWNX_PushArgumentInt(nModifier);
-    NWNX_PushArgumentInt(nFeatID);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
+    NWNXPushInt(nModifier);
+    NWNXPushInt(nFeatID);
+    NWNXCall(NWNX_CormyrDalelands, "SetNaturalBaseACModifierFeat");
 }
 
 void NWNX_CormyrDalelands_SetClassProgressesBardSongUses(int nClassID, int bProgressesUses = TRUE)
 {
-    string sFunc = "SetClassProgressesBardSongUses";
-    
-    NWNX_PushArgumentInt(bProgressesUses);
-    NWNX_PushArgumentInt(nClassID);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
+    NWNXPushInt(bProgressesUses);
+    NWNXPushInt(nClassID);
+    NWNXCall(NWNX_CormyrDalelands, "SetClassProgressesBardSongUses");
 }
 
 float NWNX_CormyrDalelands_GetRulesetFloatEntry(string sEntry, float fDefault)
 {
-    string sFunc = "GetRulesetFloatEntry";
+    NWNXPushFloat(fDefault);
+    NWNXPushString(sEntry);
+    NWNXCall(NWNX_CormyrDalelands, "GetRulesetFloatEntry");
 
-    NWNX_PushArgumentFloat(fDefault);
-    NWNX_PushArgumentString(sEntry);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
-
-    return NWNX_GetReturnValueFloat();
+    return NWNXPopFloat();
 }
 
 int NWNX_CormyrDalelands_GetRulesetIntEntry(string sEntry, int nDefault)
 {
-    string sFunc = "GetRulesetIntEntry";
+    NWNXPushInt(nDefault);
+    NWNXPushString(sEntry);
+    NWNXCall(NWNX_CormyrDalelands, "GetRulesetIntEntry");
 
-    NWNX_PushArgumentInt(nDefault);
-    NWNX_PushArgumentString(sEntry);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
-
-    return NWNX_GetReturnValueInt();
+    return NWNXPopInt();
 }
 
 string NWNX_CormyrDalelands_GetRulesetStringEntry(string sEntry, string sDefault)
 {
-    string sFunc = "GetRulesetStringEntry";
+    NWNXPushString(sDefault);
+    NWNXPushString(sEntry);
+    NWNXCall(NWNX_CormyrDalelands, "GetRulesetStringEntry");
 
-    NWNX_PushArgumentString(sDefault);
-    NWNX_PushArgumentString(sEntry);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
-
-    return NWNX_GetReturnValueString();
+    return NWNXPopString();
 }
 
 void NWNX_CormyrDalelands_UpdateCombatInformation(object oCreature)
 {
-    string sFunc = "UpdateCombatInformation";
-    
-    NWNX_PushArgumentObject(oCreature);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
+    NWNXPushObject(oCreature);
+    NWNXCall(NWNX_CormyrDalelands, "UpdateCombatInformation");
 }
 
 void NWNX_CormyrDalelands_SetCreatureAge(object oCreature, int nAge)
 {
-    string sFunc = "SetCreatureAge";
-    
-    NWNX_PushArgumentInt(nAge);
-    NWNX_PushArgumentObject(oCreature);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
+    NWNXPushInt(nAge);
+    NWNXPushObject(oCreature);
+    NWNXCall(NWNX_CormyrDalelands, "SetCreatureAge");
 }
 
 void NWNX_CormyrDalelands_SetUseBaseItemTypeUnequippedAllowed(int nBaseItemType, int bAllow)
 {
-    string sFunc = "SetUseBaseItemTypeUnequippedAllowed";
-    
-    NWNX_PushArgumentInt(bAllow);
-    NWNX_PushArgumentInt(nBaseItemType);
-    NWNX_CallFunction(NWNX_CormyrDalelands, sFunc);
+    NWNXPushInt(bAllow);
+    NWNXPushInt(nBaseItemType);
+    NWNXCall(NWNX_CormyrDalelands, "SetUseBaseItemTypeUnequippedAllowed");
 }
