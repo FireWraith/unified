@@ -232,12 +232,12 @@ static void WatchcatCtor()
                 s_watchcatThread = std::make_unique<WatchThread>();
             }
 
-            if (s_mainThreadCounter % 100 == 0)
-            {
-                LOG_INFO("Simulating long stall");
-                std::this_thread::sleep_for(std::chrono::seconds(5));
-                LOG_INFO("Simulated long stall complete");
-            }
+            //if (s_mainThreadCounter % 100 == 0)
+            //{
+            //    LOG_INFO("Simulating long stall");
+            //    std::this_thread::sleep_for(std::chrono::seconds(5));
+            //    LOG_INFO("Simulated long stall complete");
+            //}
 
             return mainLoopHook->CallOriginal<int32_t>(thisPtr);
         },
