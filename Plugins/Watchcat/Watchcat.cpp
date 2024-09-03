@@ -18,7 +18,7 @@ using namespace NWNXLib;
 #define CALLSTACK_SIZE                  20
 
 // Do not engage watchcat until this many msec have passed after module load.
-#define WATCHCAT_WARMUP_MSEC            300000
+#define WATCHCAT_WARMUP_MSEC            550000
 // If the mainloop stalls for this many msec, we start sampling callstacks.
 #define WATCHCAT_STALL_MSEC             1000
 // While stalling, sample stacks at this rate.
