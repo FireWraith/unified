@@ -9,16 +9,15 @@
 #include <execinfo.h>
 #include <pthread.h>
 #include <signal.h>
+#include <sys/prctl.h>
+#include <sys/resource.h>
 #include <thread>
 #include <unordered_map>
 
 using namespace NWNXLib;
 
-#define CALLSTACK_SIG                   SIGUSR2
-#define CALLSTACK_SIZE                  20
-
 // Do not engage watchcat until this many msec have passed after module load.
-#define WATCHCAT_WARMUP_MSEC            550000
+#define WATCHCAT_WARMUP_MSEC            450000
 // If the mainloop stalls for this many msec, we start sampling callstacks.
 #define WATCHCAT_STALL_MSEC             1000
 // While stalling, sample stacks at this rate.
@@ -28,6 +27,14 @@ using namespace NWNXLib;
 // Kill server with a FATAL message when a stall lasts longer than this many msec.
 // This assumes the thing is thoroughly wedged with no hope of recovery.
 #define WATCHCAT_KILL_MSEC              120000
+
+// Turn this on to stall the server every 100 ticks for 5 seconds (for debugging Watchcat).
+// #define WATCHCAT_SIMULATE_STALL
+
+// Don't change the signal unless you are already using USR2 for something else.
+#define CALLSTACK_SIG  SIGUSR2
+// Max depth collected.
+#define CALLSTACK_SIZE 32
 
 using Callstack = std::vector<void*>;
 
@@ -67,6 +74,7 @@ static uint64_t s_mainThreadCounter = 0;
 
 std::unique_ptr<struct WatchThread> s_watchcatThread;
 
+[[gnu::noinline]]
 static void callstack_signal_handler(int, siginfo_t*, void*)
 {
     if (pthread_self() == s_watchcatThreadId)
@@ -79,10 +87,25 @@ static void callstack_signal_handler(int, siginfo_t*, void*)
     assert(pthread_self() == s_mainThreadId);
 
     s_mainThreadStackLen = backtrace(s_mainThreadStack, CALLSTACK_SIZE);
-    if (s_mainThreadStackLen > 1)
+
+    const void* backtrace_addr = (void*)backtrace;
+    const void* backtrace_symbols_addr = (void*)backtrace_symbols;
+
+    int frames_to_skip = 1; // this signal handler
+    for (int i = 0; i < s_mainThreadStackLen; ++i)
     {
-        s_mainThreadStackLen -= 1;
-        memmove(s_mainThreadStack, s_mainThreadStack + 1, s_mainThreadStackLen * sizeof(void*));
+        if (s_mainThreadStack[i] == backtrace_addr || s_mainThreadStack[i] == backtrace_symbols_addr)
+        {
+            frames_to_skip += i;
+            break;
+        }
+    }
+
+    if (frames_to_skip > 0 && s_mainThreadStackLen > frames_to_skip)
+    {
+        s_mainThreadStackLen -= frames_to_skip;
+        memmove(s_mainThreadStack, s_mainThreadStack + frames_to_skip,
+            s_mainThreadStackLen * sizeof(void*));
     }
 
     pthread_kill(s_watchcatThreadId, CALLSTACK_SIG);
@@ -111,10 +134,10 @@ static void DumpStacks(const CallstackMap& callstacks)
     {
         const auto& [callstack, occurs] = sortedCallstacks.at(i);
         char** strstack = backtrace_symbols(callstack.data(), callstack.size());
-        LOG_WARNING("Callstack %d: %d occurences", i, occurs);
+        LOG_ERROR("Callstack %d: %d occurences", i, occurs);
         for (size_t k = 0; k < callstack.size(); ++k)
         {
-            LOG_WARNING("  %s", strstack[k]);
+            LOG_ERROR("  %s", strstack[k]);
         }
         free(strstack);
     }
@@ -132,8 +155,8 @@ static void WatchcatThread()
     callstack_register_handler();
 
     // Warmup delay to prevent false positives when the server is starting up.
+    LOG_INFO("Watchcat ^.^~ sleeping for %dms before arming", WATCHCAT_WARMUP_MSEC);
     std::this_thread::sleep_for(milliseconds(WATCHCAT_WARMUP_MSEC));
-
     LOG_INFO("Watchcat ^.^~ thread starting");
 
     // Last count and time we saw the main thread tick over.
@@ -165,7 +188,7 @@ static void WatchcatThread()
             continue;
         }
 
-        LOG_WARNING("Watchcat ^.^~ detected a stall.");
+        LOG_ERROR("Watchcat ^.^~ detected a stall.");
 
         CallstackMap callstacks;
 
@@ -189,13 +212,17 @@ static void WatchcatThread()
                 milliseconds(WATCHCAT_STALL_MSEC + WATCHCAT_KILL_MSEC))
             {
                 DumpStacks(callstacks);
+                if (prctl(PR_SET_DUMPABLE, 1) != 0)
+                {
+                    LOG_WARNING("Failed to set PR_SET_DUMPABLE, errno=%d", errno);
+                }
                 LOG_FATAL("Watchcat ^.^~ ran out of patience.");
             }
 
             std::this_thread::sleep_for(milliseconds(WATCHCAT_STALL_SAMPLE_RATE_MSEC));
         }
 
-        LOG_WARNING("Stall recovered after %lums",
+        LOG_ERROR("Stall recovered after %lums",
             duration_cast<milliseconds>(now - lastObservedAt).count());
 
         DumpStacks(callstacks);
@@ -218,6 +245,24 @@ static uint32_t s_watchcatDisabledUntilScriptExitLevel = 0;
 static void WatchcatCtor() __attribute__((constructor));
 static void WatchcatCtor()
 {
+    struct rlimit core_limit;
+    if (getrlimit(RLIMIT_CORE, &core_limit) == 0)
+    {
+        if (core_limit.rlim_cur == RLIM_INFINITY)
+        {
+            LOG_INFO("Core dump limit is correctly set to unlimited.");
+        }
+        else
+        {
+            LOG_WARNING("Core dump limit is not set to unlimited. Current limit: %ld bytes.",
+                core_limit.rlim_cur);
+        }
+    }
+    else
+    {
+        LOG_ERROR("Unable to get core dump limit.");
+    }
+
     s_mainThreadId = pthread_self();
     callstack_register_handler();
 
@@ -232,12 +277,14 @@ static void WatchcatCtor()
                 s_watchcatThread = std::make_unique<WatchThread>();
             }
 
-            //if (s_mainThreadCounter % 100 == 0)
-            //{
-            //    LOG_INFO("Simulating long stall");
-            //    std::this_thread::sleep_for(std::chrono::seconds(5));
-            //    LOG_INFO("Simulated long stall complete");
-            //}
+#ifdef WATCHCAT_SIMULATE_STALL
+            if (s_mainThreadCounter % 100 == 0)
+            {
+                LOG_INFO("Simulating long stall");
+                std::this_thread::sleep_for(std::chrono::seconds(5));
+                LOG_INFO("Simulated long stall complete");
+            }
+#endif
 
             return mainLoopHook->CallOriginal<int32_t>(thisPtr);
         },
@@ -258,7 +305,7 @@ static void WatchcatCtor()
         });
 }
 
-NWNX_EXPORT ArgumentStack NWNXWatchcat_DisableUntilScriptExit(ArgumentStack&&)
+NWNX_EXPORT ArgumentStack DisableUntilScriptExit(ArgumentStack&&)
 {
     s_watchcatDisabledUntilScriptExitLevel++;
     s_watchcatDisabledUntilScriptExit.store(true);
