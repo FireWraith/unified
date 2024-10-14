@@ -3566,3 +3566,66 @@ NWNX_EXPORT ArgumentStack GetMaxAttackRange(ArgumentStack&& args)
 
     return 0.0f;
 }
+
+static Hooks::Hook s_ClearHostileActionsVersusHook = Hooks::HookFunction(&CNWSCreature::ClearHostileActionsVersus,
++[](CNWSCreature *pThis, CNWSCreature *pCreature) -> void
+{
+    CExoLinkedList<CNWSObjectActionNode> *pQueuedActions = &pThis->m_lQueuedActions;
+    if (!pQueuedActions)
+        return;
+
+    int32_t nNumGroups = pThis->GetNumActionGroups(), nLoopGuard = 0;
+    for (int32_t nCount = 0; nCount < nNumGroups; nCount++)
+    {
+        if (nLoopGuard == 250)
+        {
+            LOG_ERROR("Infinite loop in CNWSCreature::ClearHostileActionsVersus? this = %s, target = %s",
+                Utils::ObjectIDToString(pThis->m_idSelf), Utils::ObjectIDToString(pCreature->m_idSelf));
+            break;
+        }
+
+        if (auto pPosition = pThis->GetPositionByGroupIndex(nCount))
+        {
+            if (auto *pTestAction = pQueuedActions->GetAtPos(pPosition))
+            {
+                int32_t nGroupId = pTestAction->m_nGroupActionId;
+                CNWSObjectActionNode *pNode = nullptr;
+                if (pThis->GetActionByGroupId(nGroupId, &pNode) != 0xFFFF)
+                {
+                    if (pNode)
+                    {
+                        if (pNode->m_nActionId == 12)
+                        {
+                            if ((ObjectID)pNode->m_pParameter[0] == pCreature->m_idSelf)
+                            {
+                                pThis->RemoveGroup(nGroupId);
+                                nCount = 0;
+                            }
+                        }
+                        else if (pNode->m_nActionId == 15)
+                        {
+                            if ((ObjectID)pNode->m_pParameter[5] == pCreature->m_idSelf)
+                            {
+                                pThis->RemoveGroup(nGroupId);
+                                pThis->SetAnimation(1);
+                                pThis->SetLockOrientationToObject(Constants::OBJECT_INVALID);
+                                pThis->m_bLastSpellUnReadied = false;
+                                pThis->RemoveSpellActionFromRound();
+                                nCount = 0;
+                            }
+                        }
+                        else if (pNode->m_nActionId == 46)
+                        {
+                            if ((ObjectID)pNode->m_pParameter[3] == pCreature->m_idSelf)
+                            {
+                                pThis->RemoveGroup(nGroupId);
+                                nCount = 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        nLoopGuard++;
+    }
+}, Hooks::Order::Final);
