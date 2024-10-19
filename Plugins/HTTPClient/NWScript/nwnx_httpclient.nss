@@ -2,7 +2,6 @@
 /// @brief NWNX HTTPClient
 /// @{
 /// @file nwnx_httpclient.nss
-#include "nwnx"
 
 const string NWNX_HTTPClient = "NWNX_HTTPClient"; ///< @private
 
@@ -70,7 +69,6 @@ struct NWNX_HTTPClient_Request NWNX_HTTPClient_GetRequest(int nRequestId);
 
 int NWNX_HTTPClient_SendRequest(struct NWNX_HTTPClient_Request s)
 {
-    string sFunc = "SendRequest";
     NWNXPushString(s.sHeaders);
     NWNXPushInt(s.nPort);
     NWNXPushString(s.sAuthPassword);
@@ -82,18 +80,14 @@ int NWNX_HTTPClient_SendRequest(struct NWNX_HTTPClient_Request s)
     NWNXPushString(s.sHost);
     NWNXPushInt(s.nRequestMethod);
     NWNXPushString(s.sTag);
-    NWNXCall(NWNX_HTTPClient, sFunc);
-
+    NWNXCall(NWNX_HTTPClient, "SendRequest");
     return NWNXPopInt();
 }
 
 struct NWNX_HTTPClient_Request NWNX_HTTPClient_GetRequest(int nRequestId)
 {
-
-    string sFunc = "GetRequest";
-
     NWNXPushInt(nRequestId);
-    NWNXCall(NWNX_HTTPClient, sFunc);
+    NWNXCall(NWNX_HTTPClient, "GetRequest");
 
     struct NWNX_HTTPClient_Request s;
 

@@ -86,3 +86,4 @@ static int32_t CalculateContentsWeightHook(CItemRepository *pThis)
 }
 
 }
+
