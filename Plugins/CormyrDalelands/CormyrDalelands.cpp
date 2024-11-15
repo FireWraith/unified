@@ -991,10 +991,11 @@ void ReplaceDefensiveStanceEffects()
     static Hooks::Hook s_OnApplyDefensiveStanceHook = Hooks::HookFunction(&CNWSEffectListHandler::OnApplyDefensiveStance,
         +[](CNWSEffectListHandler*, CNWSObject *pObject, CGameEffect *pEffect, BOOL bLoadingGame = false) -> int32_t
         {
-            auto *pSetAIState = new CGameEffect(pEffect, false);
-            pSetAIState->m_nType = Constants::EffectTrueType::SetAIState;
-            pSetAIState->SetInteger(0, -3);
-            pObject->ApplyEffect(pSetAIState, bLoadingGame, false);
+            // Commented out the immobility effect since we now let people slowly walk with the stance active
+            //auto *pSetAIState = new CGameEffect(pEffect, false);
+            //pSetAIState->m_nType = Constants::EffectTrueType::SetAIState;
+            //pSetAIState->SetInteger(0, -3);
+            //pObject->ApplyEffect(pSetAIState, bLoadingGame, false);
 
             auto *pRunScript = new CGameEffect(pEffect, false);
             pRunScript->m_nType = Constants::EffectTrueType::RunScript;
