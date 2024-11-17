@@ -26,7 +26,7 @@ using namespace NWNXLib;
 #define WATCHCAT_TOP_N_STACKS           10
 // Kill server with a FATAL message when a stall lasts longer than this many msec.
 // This assumes the thing is thoroughly wedged with no hope of recovery.
-#define WATCHCAT_KILL_MSEC              120000
+#define WATCHCAT_KILL_MSEC              180000
 
 // Turn this on to stall the server every 100 ticks for 5 seconds (for debugging Watchcat).
 // #define WATCHCAT_SIMULATE_STALL
