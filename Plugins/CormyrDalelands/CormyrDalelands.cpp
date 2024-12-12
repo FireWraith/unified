@@ -853,6 +853,8 @@ void FixDefensiveStanceTotalUses()
                 if (!pThis->HasFeat(nFeat))
                     return 0;
 
+                /* 
+                //Commented out to make the stance infinite
                 auto nNumUses = pThis->GetFeatTotalUses(nFeat);
 
                 for (int32_t i = 0; i < pThis->m_lstFeatUses.num; i++)
@@ -863,9 +865,10 @@ void FixDefensiveStanceTotalUses()
                         nNumUses -= pFeatUses->m_nUsedToday;
                         break;
                     }
-                }
+                }*/
 
-                return std::clamp<uint8_t>(nNumUses, 0, 100);
+                //return std::clamp<uint8_t>(nNumUses, 0, 100);
+                return 100;
             }
 
             return s_GetFeatRemainingUsesHook->CallOriginal<uint8_t>(pThis, nFeat);
