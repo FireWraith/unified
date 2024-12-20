@@ -3567,65 +3567,66 @@ NWNX_EXPORT ArgumentStack GetMaxAttackRange(ArgumentStack&& args)
     return 0.0f;
 }
 
-static Hooks::Hook s_ClearHostileActionsVersusHook = Hooks::HookFunction(&CNWSCreature::ClearHostileActionsVersus,
-+[](CNWSCreature *pThis, CNWSCreature *pCreature) -> void
+NWNX_EXPORT ArgumentStack GetMulticlassLimit(ArgumentStack&& args)
 {
-    CExoLinkedList<CNWSObjectActionNode> *pQueuedActions = &pThis->m_lQueuedActions;
-    if (!pQueuedActions)
-        return;
-
-    int32_t nNumGroups = pThis->GetNumActionGroups(), nLoopGuard = 0;
-    for (int32_t nCount = 0; nCount < nNumGroups; nCount++)
+    if (auto *pCreature = Utils::PopCreature(args))
     {
-        if (nLoopGuard == 250)
-        {
-            LOG_ERROR("Infinite loop in CNWSCreature::ClearHostileActionsVersus? this = %s, target = %s",
-                Utils::ObjectIDToString(pThis->m_idSelf), Utils::ObjectIDToString(pCreature->m_idSelf));
-            break;
-        }
+        return pCreature->nwnxGet<int32_t>("MULTICLASS_LIMIT").value_or(0);
+    }
+    return 0;
+}
 
-        if (auto pPosition = pThis->GetPositionByGroupIndex(nCount))
+NWNX_EXPORT ArgumentStack SetMulticlassLimit(ArgumentStack&& args)
+{
+    static Hooks::Hook s_GetIsClassAvailableHook = Hooks::HookFunction(&CNWSCreatureStats::GetIsClassAvailable,
+    +[](CNWSCreatureStats *pThis, uint8_t nClass) -> BOOL
+    {
+        if (pThis->m_bIsPC)
         {
-            if (auto *pTestAction = pQueuedActions->GetAtPos(pPosition))
+            const auto limit = pThis->m_pBaseCreature->nwnxGet<int32_t>("MULTICLASS_LIMIT");
+            if (limit.has_value() && pThis->m_nNumMultiClasses >= limit.value())
             {
-                int32_t nGroupId = pTestAction->m_nGroupActionId;
-                CNWSObjectActionNode *pNode = nullptr;
-                if (pThis->GetActionByGroupId(nGroupId, &pNode) != 0xFFFF)
+                for (int i = 0; i < pThis->m_nNumMultiClasses; ++i)
                 {
-                    if (pNode)
-                    {
-                        if (pNode->m_nActionId == 12)
-                        {
-                            if ((ObjectID)pNode->m_pParameter[0] == pCreature->m_idSelf)
-                            {
-                                pThis->RemoveGroup(nGroupId);
-                                nCount = 0;
-                            }
-                        }
-                        else if (pNode->m_nActionId == 15)
-                        {
-                            if ((ObjectID)pNode->m_pParameter[5] == pCreature->m_idSelf)
-                            {
-                                pThis->RemoveGroup(nGroupId);
-                                pThis->SetAnimation(1);
-                                pThis->SetLockOrientationToObject(Constants::OBJECT_INVALID);
-                                pThis->m_bLastSpellUnReadied = false;
-                                pThis->RemoveSpellActionFromRound();
-                                nCount = 0;
-                            }
-                        }
-                        else if (pNode->m_nActionId == 46)
-                        {
-                            if ((ObjectID)pNode->m_pParameter[3] == pCreature->m_idSelf)
-                            {
-                                pThis->RemoveGroup(nGroupId);
-                                nCount = 0;
-                            }
-                        }
-                    }
+                    if (pThis->m_ClassInfo[i].m_nClass == nClass)
+                        return s_GetIsClassAvailableHook->CallOriginal<BOOL>(pThis, nClass);
                 }
+
+                return 0;
             }
         }
-        nLoopGuard++;
+
+        return s_GetIsClassAvailableHook->CallOriginal<BOOL>(pThis, nClass);
+    }, Hooks::Order::Late);
+
+    if (auto *pCreature = Utils::PopCreature(args))
+    {
+        const auto limit = args.extract<int32_t>();
+          ASSERT_OR_THROW(limit >= 0);
+
+        const bool persist = !!args.extract<int32_t>();
+
+        if (!pCreature->m_bPlayerCharacter)
+        {
+            LOG_WARNING("SetMulticlassLimit: Only works on PCs");
+            return {};
+        }
+
+        if (limit >= Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("MULTICLASS_LIMIT"), 3))
+        {
+            LOG_WARNING("SetMulticlassLimit: Limit has to be lower than the server limit");
+            return {};
+        }
+
+        if (limit == 0)
+        {
+            pCreature->nwnxRemove("MULTICLASS_LIMIT");
+        }
+        else
+        {
+            pCreature->nwnxSet("MULTICLASS_LIMIT", limit, persist);
+        }
     }
-}, Hooks::Order::Final);
+
+    return {};
+}
