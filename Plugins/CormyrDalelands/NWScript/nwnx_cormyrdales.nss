@@ -35,11 +35,6 @@ void NWNX_CormyrDalelands_SetFeatIsDeathAttackFeat(int nFeat, int bIsDeathAttack
 /// @param nModifier AC modifier.
 void NWNX_CormyrDalelands_SetNaturalBaseACModifierFeat(int nFeatID, int nModifier);
 
-/// @brief Sets a feat to gain more uses per day from a character's ability modifier. DO NOT USE FOR INFINITE FEATS.
-/// @param nFeat The feat.
-/// @param ability The ability.
-void NWNX_CormyrDalelands_SetModProgressesFeatUsePerDay(int nFeat, int ability);
-
 /// @brief Sets a class to add its class levels to bard song's uses per day.
 /// @param nClassID The class.
 void NWNX_CormyrDalelands_SetClassProgressesBardSongUses(int nClassID, int bProgressesUses = TRUE);
@@ -119,13 +114,6 @@ void NWNX_CormyrDalelands_SetNaturalBaseACModifierFeat(int nFeatID, int nModifie
     NWNXPushInt(nModifier);
     NWNXPushInt(nFeatID);
     NWNXCall(NWNX_CormyrDalelands, "SetNaturalBaseACModifierFeat");
-}
-
-void NWNX_CormyrDalelands_SetModProgressesFeatUsePerDay(int nFeat, int ability)
-{
-    NWNXPushInt(ability);
-    NWNXPushInt(nFeat);
-    NWNXCall(NWNX_CormyrDalelands, "SetModProgressesFeatUsePerDay");
 }
 
 void NWNX_CormyrDalelands_SetClassProgressesBardSongUses(int nClassID, int bProgressesUses = TRUE)

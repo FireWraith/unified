@@ -42,7 +42,6 @@ const static uint16_t FEAT_TEMPEST_AMBIDEXTERITY_1 = 2483;
 const static uint16_t FEAT_TEMPEST_AMBIDEXTERITY_2 = 2486;
 
 static std::unordered_map<std::uint16_t, int8_t> m_ACNaturalBaseModifierFeats;
-static std::unordered_map<std::int32_t, int32_t> s_FeatUsesPerDayByMod;
 
 static std::set<std::uint16_t> m_DefaultSneakAttackFeats = {
     Constants::Feat::SneakAttack,
@@ -137,7 +136,6 @@ static bool s_OverrideDeathAttackDamageRoll;
 static bool s_InDeathAttackRollDice;
 static int32_t s_TempestAmbidexterityModifier;
 static bool s_InUseItemAllowUnequipped;
-static bool s_SetModProgressesFeatUsePerDay = Config::Get<bool>("FEAT_USE_PER_DAY_BY_MOD", false);
 static bool s_BardSongExtraMusicByCharismaModifier = Config::Get<bool>("BARD_SONG_EXTRA_MUSIC_BY_CHARISMA_MOD", false);
 static bool s_LingeringSongExtraMusic = Config::Get<bool>("BARD_SONG_EXTRA_MUSIC_USE_LINGERING_SONG_FEAT", false);
 
@@ -875,148 +873,6 @@ void FixDefensiveStanceTotalUses()
 
             return s_GetFeatRemainingUsesHook->CallOriginal<uint8_t>(pThis, nFeat);
         }, Hooks::Order::Late);
-}
-
-NWNX_EXPORT ArgumentStack SetModProgressesFeatUsePerDay(ArgumentStack&& args)
-{
-    const auto nFeat = args.extract<int32_t>();
-    const auto ability = args.extract<int32_t>();
-    
-        ASSERT_OR_THROW(nFeat >= Constants::Feat::MIN);
-        ASSERT_OR_THROW(nFeat <= Constants::Feat::MAX);    
-        ASSERT_OR_THROW(ability >= Constants::Ability::MIN);
-        ASSERT_OR_THROW(ability <= Constants::Ability::MAX);
-
-    CNWFeat *pFeat = Globals::Rules()->GetFeat(static_cast<uint16_t>(nFeat));
-         ASSERT_OR_THROW(pFeat);
-        
-    std::string abilityName;
-    switch (ability)
-    {
-        case Constants::Ability::Strength:
-            abilityName = "Strength";
-            break;
-        case Constants::Ability::Dexterity:
-            abilityName = "Dexterity";
-            break;
-        case Constants::Ability::Constitution:
-            abilityName = "Constitution";
-            break;
-        case Constants::Ability::Intelligence:
-            abilityName = "Intelligence";
-            break;
-        case Constants::Ability::Wisdom:
-            abilityName = "Wisdom";
-            break;
-        case Constants::Ability::Charisma:
-            abilityName = "Charisma";
-            break;
-        default:
-            abilityName = "Unknown";
-            break;
-    }
-
-    s_FeatUsesPerDayByMod[static_cast<uint16_t>(nFeat)] = static_cast<int32_t>(ability);
-
-    LOG_INFO("Feat %s [%d] uses/day set as increasing from %s ability modifier", pFeat->GetNameText(), nFeat, abilityName.c_str());
-
-    static Hooks::Hook s_GetFeatTotalUsesHook = Hooks::HookFunction(&CNWSCreatureStats::GetFeatTotalUses,
-        +[](CNWSCreatureStats *pThis, uint16_t nFeat) -> uint8_t
-        {
-            auto FoundStatForFeat = s_FeatUsesPerDayByMod.find(nFeat);     
-            if (FoundStatForFeat != s_FeatUsesPerDayByMod.end())
-            {
-                if (auto *pFeat = Globals::Rules()->GetFeat(nFeat))
-                {   
-                    if (!pThis->HasFeat(nFeat))
-                        return 0;
-
-                    if (pThis->m_lstFeatUses.num < 1)
-                        return 100;
-
-                    auto *pFeatUses = pThis->m_lstFeatUses.element[0];
-                    for (int32_t i = 0; pFeatUses->m_nFeat != nFeat; ++i)
-                    {
-                        if (i > pThis->m_lstFeatUses.num)
-                            return 100;
-                        pFeatUses = pThis->m_lstFeatUses.element[i];
-                    }
-
-                    auto nNumUses = pFeat->m_nUsesPerDay;
-
-                    // We clamp to 0-100 to prevent errors
-                    if (s_SetModProgressesFeatUsePerDay)
-                    {
-                        auto ability = FoundStatForFeat->second;
-                        //nNumUses += std::clamp<uint8_t>(pThis->GetAbilityMod(ability), 0, 100);
-                        switch (ability)
-                        {                            
-                            case Constants::Ability::Charisma:
-                                nNumUses += std::clamp<uint8_t>(pThis->m_nCharismaModifier, 0, 100);
-                                break;
-                            case Constants::Ability::Constitution:
-                                nNumUses += std::clamp<uint8_t>(pThis->m_nConstitutionModifier, 0, 100);
-                                break;
-                            case Constants::Ability::Dexterity:
-                                nNumUses += std::clamp<uint8_t>(pThis->m_nDexterityModifier, 0, 100);
-                                break;
-                            case Constants::Ability::Intelligence:
-                                nNumUses += std::clamp<uint8_t>(pThis->m_nIntelligenceModifier, 0, 100);
-                                break;
-                            case Constants::Ability::Strength:
-                                nNumUses += std::clamp<uint8_t>(pThis->m_nStrengthModifier, 0, 100);
-                                break;
-                            case Constants::Ability::Wisdom:
-                                nNumUses += std::clamp<uint8_t>(pThis->m_nWisdomModifier, 0, 100);
-                                break;
-                            default:
-                                break;
-                        }
-                    }
-
-                    if (nNumUses > 100)
-                        return 100;
-
-                    return nNumUses;
-                }
-            }
-            return s_GetFeatTotalUsesHook->CallOriginal<uint8_t>(pThis, nFeat);
-        }, Hooks::Order::Late);
-
-    static Hooks::Hook s_GetFeatRemainingUsesHook = Hooks::HookFunction(&CNWSCreatureStats::GetFeatRemainingUses,
-        +[](CNWSCreatureStats *pThis, uint16_t nFeat) -> uint8_t
-        {
-            auto FoundStatForFeat = s_FeatUsesPerDayByMod.find(nFeat);     
-            if (FoundStatForFeat != s_FeatUsesPerDayByMod.end())
-            {
-                if (!Globals::Rules()->GetFeat(nFeat))
-                    return 0;
-
-                if (pThis->GetIsDM())
-                    return 100;
-
-                if (!pThis->HasFeat(nFeat))
-                    return 0;
-
-                auto nNumUses = pThis->GetFeatTotalUses(nFeat);
-
-                for (int32_t i = 0; i < pThis->m_lstFeatUses.num; i++)
-                {
-                    auto *pFeatUses = pThis->m_lstFeatUses.element[i];
-                    if (pFeatUses->m_nFeat == nFeat)
-                    {
-                        nNumUses -= pFeatUses->m_nUsedToday;
-                        break;
-                    }
-                }
-
-                return std::clamp<uint8_t>(nNumUses, 0, 100);
-            }
-
-            return s_GetFeatRemainingUsesHook->CallOriginal<uint8_t>(pThis, nFeat);
-        }, Hooks::Order::Late);
-
-    return {};
 }
 
 NWNX_EXPORT ArgumentStack SetClassProgressesBardSongUses(ArgumentStack&& args)
