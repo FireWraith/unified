@@ -51,3 +51,4 @@ void NWNX_Profiler_PopPerfScope()
 {
     NWNXCall(NWNX_Profiler, "PopPerfScope");
 }
+

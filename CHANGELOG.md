@@ -8,13 +8,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 https://github.com/nwnxee/unified/compare/build8193.37.13...HEAD
 
 ### Added
-- N/A
+- Tweaks: added `NWNX_TWEAKS_RESIST_ENERGY_STACKS_WITH_EPIC_ENERGY_RESISTANCE` to make Resist Energy feats stack with Epic Energy Resistance.
+- Tweaks: added `NWNX_TWEAKS_UNHARDCODE_SPECIAL_ABILITY_TARGET_TYPE` to allow special abilities to be used on target types other than creatures.
 
 ##### New Plugins
 - N/A
 
 ##### New NWScript Functions
-- N/A
+- Player: GetOpenStore()
 
 ### Changed
 - N/A
@@ -26,7 +27,8 @@ https://github.com/nwnxee/unified/compare/build8193.37.13...HEAD
 - N/A
 
 ### Fixed
-- N/A
+- Fixed `NWNX_TWEAKS_SETAREA_CALLS_SETPOSITION` not working with `NWNX_ON_MATERIALCHANGE_*`.
+- MaxLevel: Fixed returning an invalid number of known spells in some cases.
 
 ## 8193.37.13
 https://github.com/nwnxee/unified/compare/build8193.36.10...build8193.37.13
