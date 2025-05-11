@@ -15,6 +15,12 @@ int NWNX_CormyrDalelands_GetCreatureIncorporealFlag(object oCreature);
 /// @param bIsIncorporeal Whether the creature is incorporeal.
 void NWNX_CormyrDalelands_SetCreatureIncorporealFlag(object oCreature, int bIsIncorporeal);
 
+/// @brief Sets a class as smite class for smite evil/good damage progression.
+/// @param nClassID The class.
+/// @param bIsSmiteClass Whether the class is considered a smite class or not.
+/// @param nSmiteType The smite type. 0 = evil, 1 = good, 2 = both.
+void NWNX_CormyrDalelands_SetClassIsSmiteClass(int nClassID, int bIsSmiteClass = TRUE, int nSmiteType = 0);
+
 /// @brief Sets a class as Uncanny Dodge II class for sneak/death attacks.
 /// @param nClassID The class.
 /// @param bIsUncannyDodgeClass Whether the class is considered an uncanny dodge class or not.
@@ -86,6 +92,14 @@ void NWNX_CormyrDalelands_SetCreatureIncorporealFlag(object oCreature, int bIsIn
     NWNXPushInt(bIsIncorporeal);
     NWNXPushObject(oCreature);
     NWNXCall(NWNX_CormyrDalelands, "SetCreatureIncorporealFlag");
+}
+
+void NWNX_CormyrDalelands_SetClassIsSmiteClass(int nClassID, int bIsSmiteClass = TRUE, int nSmiteType = 0)
+{
+    NWNXPushInt(bIsSmiteClass);
+    NWNXPushInt(nClassID);
+    NWNXPushInt(nSmiteType);
+    NWNXCall(NWNX_CormyrDalelands, "SetClassIsSmiteClass");
 }
 
 void NWNX_CormyrDalelands_SetClassIsSneakAttackUncannyDodgeClass(int nClassID, int bIsUncannyDodgeClass = TRUE)

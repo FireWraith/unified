@@ -37,6 +37,7 @@ namespace CormyrDalelands {
 
 const static int32_t ITEM_PROPERTY_GHOST_TOUCH_WEAPON = 213;
 
+const static uint8_t CLASS_TYPE_WINDWALKER = 76;
 const static uint8_t CLASS_TYPE_TEMPEST = 86;
 const static uint16_t FEAT_TEMPEST_AMBIDEXTERITY_1 = 2483;
 const static uint16_t FEAT_TEMPEST_AMBIDEXTERITY_2 = 2486;
@@ -123,6 +124,12 @@ static std::set<std::uint8_t> m_SneakAttackUncannyDodgeClasses = {
     Constants::ClassType::Shadowdancer
 };
 
+static std::map<int, std::pair<bool, int>> smiteClassMap = {
+    {Constants::ClassType::Paladin, {true, 0}},
+    {Constants::ClassType::Blackguard, {true, 1}},
+    {Constants::ClassType::DivineChampion, {true, 0}}
+};
+
 static std::set<std::uint8_t> m_BardSongUsesProgressingClasses = {
     Constants::ClassType::Bard
 };
@@ -152,7 +159,7 @@ void GhostTouchWeaponProperty()
 
     static Hooks::Hook s_ResolveDefensiveEffectsHook =
         Hooks::HookFunction(&CNWSCreature::ResolveDefensiveEffects,
-        +[](CNWSCreature *pThis, CNWSObject *pTarget, BOOL bAttackHit = true) -> bool
+        +[](CNWSCreature *pThis, CNWSObject *pTarget, BOOL bAttackHit = true) -> BOOL
         {
             if (pTarget->nwnxGet<int>("CDX_INCORPOREAL_CREATURE"))
             {
@@ -163,14 +170,15 @@ void GhostTouchWeaponProperty()
                         if (pWeapon->GetPropertyByTypeExists(ITEM_PROPERTY_GHOST_TOUCH_WEAPON))
                         {
                             s_InResolveDefensiveEffectsWithGhostTouchWeapon = true;
-                            s_ResolveDefensiveEffectsHook->CallOriginal<bool>(pThis, pTarget, bAttackHit);
+                            BOOL retVal = s_ResolveDefensiveEffectsHook->CallOriginal<BOOL>(pThis, pTarget, bAttackHit);
                             s_InResolveDefensiveEffectsWithGhostTouchWeapon = false;
+                            return retVal;
                         }
                     }
                 }
             }
 
-            return s_ResolveDefensiveEffectsHook->CallOriginal<bool>(pThis, pTarget, bAttackHit);
+            return s_ResolveDefensiveEffectsHook->CallOriginal<BOOL>(pThis, pTarget, bAttackHit);
         }, Hooks::Order::Earliest);
 
     static Hooks::Hook s_GetEffectIntegerHook =
@@ -640,6 +648,99 @@ NWNX_EXPORT ArgumentStack SetNaturalBaseACModifierFeat(ArgumentStack&& args)
 
             return retval;
         }, Hooks::Order::Late);
+
+    return {};
+}
+
+NWNX_EXPORT ArgumentStack SetClassIsSmiteClass(ArgumentStack&& args)
+{
+    int nSmiteType = args.extract<int32_t>();    // 0 = Evil, 1 = Good, 2 = Both
+    ASSERT_OR_THROW(nSmiteType >= 0 && nSmiteType <= 2);
+
+    int nClassId = args.extract<int32_t>();      // Class ID
+    ASSERT_OR_THROW(nClassId >= Constants::ClassType::MIN);
+    ASSERT_OR_THROW(nClassId <= Constants::ClassType::MAX);
+
+    CNWClass *pClass = nClassId < Globals::Rules()->m_nNumClasses ? &Globals::Rules()->m_lstClasses[nClassId] : nullptr;
+    ASSERT_OR_THROW(pClass != nullptr);
+
+    int bIsSmiteClass = args.extract<int32_t>(); // 1 = true, 0 = false
+    ASSERT_OR_THROW(bIsSmiteClass == 0 || bIsSmiteClass == 1);
+
+    // Store for later lookup
+    smiteClassMap[nClassId] = std::make_pair(!!bIsSmiteClass, nSmiteType);
+
+    LOG_INFO("Class %s [%d] set as Smite damage progressing class", pClass->GetNameText(), nClassId);
+
+    static Hooks::Hook s_GetDamageRollHook =
+    Hooks::HookFunction(&CNWSCreatureStats::ResolveSpecialAttackDamageBonus,
+    +[](CNWSCreatureStats *thisPtr, CNWSCreature *pTarget) -> int32_t
+    {
+        // Sanity checks
+        CNWSCreature* pThis = thisPtr->m_pBaseCreature;
+        if (!pThis)
+            return 0;
+
+        CNWSCombatAttackData *pAttackData = pThis->m_pcCombatRound->GetAttack(pThis->m_pcCombatRound->m_nCurrentAttack);
+
+        if (!pAttackData)
+            return 0;
+
+        // Ignore the hook if not a smite attack
+        if (pAttackData->m_nAttackType != Constants::Feat::SmiteEvil && pAttackData->m_nAttackType != Constants::Feat::SmiteGood)
+            return s_GetDamageRollHook->CallOriginal<int32_t>(thisPtr, pTarget);
+        
+        // Calculate Epic Great Smiting rank
+        int nSmiteRank = 1;
+        if (thisPtr->HasFeat(Constants::Feat::EpicGreatSmiting10))        
+            nSmiteRank = Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EPIC_GREAT_SMITING_10"), 11);    
+        else if (thisPtr->HasFeat(Constants::Feat::EpicGreatSmiting9)) 
+            nSmiteRank = Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EPIC_GREAT_SMITING_9"), 10);  
+        else if (thisPtr->HasFeat(Constants::Feat::EpicGreatSmiting8)) 
+            nSmiteRank = Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EPIC_GREAT_SMITING_8"), 9);    
+        else if (thisPtr->HasFeat(Constants::Feat::EpicGreatSmiting7)) 
+            nSmiteRank = Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EPIC_GREAT_SMITING_7"), 8);  
+        else if (thisPtr->HasFeat(Constants::Feat::EpicGreatSmiting6)) 
+            nSmiteRank = Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EPIC_GREAT_SMITING_6"), 7);
+        else if (thisPtr->HasFeat(Constants::Feat::EpicGreatSmiting5)) 
+            nSmiteRank = Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EPIC_GREAT_SMITING_5"), 6);  
+        else if (thisPtr->HasFeat(Constants::Feat::EpicGreatSmiting4)) 
+            nSmiteRank = Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EPIC_GREAT_SMITING_4"), 5);
+        else if (thisPtr->HasFeat(Constants::Feat::EpicGreatSmiting3)) 
+            nSmiteRank = Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EPIC_GREAT_SMITING_3"), 4);  
+        else if (thisPtr->HasFeat(Constants::Feat::EpicGreatSmiting2)) 
+            nSmiteRank = Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EPIC_GREAT_SMITING_2"), 3);
+        else if (thisPtr->HasFeat(Constants::Feat::EpicGreatSmiting1)) 
+            nSmiteRank = Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EPIC_GREAT_SMITING_1"), 2);
+            
+        // Determine smite type
+        int smiteType = (pAttackData->m_nAttackType == Constants::Feat::SmiteEvil) ? 0 : 1;
+
+        // Alignment check
+        if ((smiteType == 0 && (!thisPtr->m_nNumMultiClasses || !pTarget || pTarget->m_pStats->m_nAlignmentGoodEvil > 30)) ||
+            (smiteType == 1 && (!pTarget || pTarget->m_pStats->m_nAlignmentGoodEvil < 70)))
+            return 0;
+
+        // Sum levels of all classes that are smite classes for this smite type
+        int nLevels = 0;
+
+        for (uint8_t i = 0; i < thisPtr->m_nNumMultiClasses; ++i)
+        {
+            int classId = thisPtr->GetClass(i);
+            auto it = smiteClassMap.find(classId);
+            if (it != smiteClassMap.end())
+            {
+                bool isSmiteClass = it->second.first;
+                int classSmiteType = it->second.second;
+                // 0 = Evil, 1 = Good, 2 = Both
+                if (isSmiteClass && (classSmiteType == smiteType || classSmiteType == 2))
+                {
+                    nLevels += thisPtr->GetClassLevel(i, false);
+                }
+            }
+        }
+        return nLevels * nSmiteRank;
+    }, Hooks::Order::Late);
 
     return {};
 }
