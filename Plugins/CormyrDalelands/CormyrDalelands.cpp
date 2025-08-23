@@ -35,6 +35,9 @@ using namespace NWNXLib::API;
 
 namespace CormyrDalelands {
 
+// Spell quickening - spells in this set will cast in 3000ms instead of 6000ms
+static std::set<uint32_t> m_QuickenedSpells;
+
 const static int32_t ITEM_PROPERTY_GHOST_TOUCH_WEAPON = 213;
 
 const static uint8_t CLASS_TYPE_WINDWALKER = 76;
@@ -139,6 +142,7 @@ static int32_t s_TempestAmbidexterityModifier;
 static bool s_InUseItemAllowUnequipped;
 static bool s_BardSongExtraMusicByCharismaModifier = Config::Get<bool>("BARD_SONG_EXTRA_MUSIC_BY_CHARISMA_MOD", false);
 static bool s_LingeringSongExtraMusic = Config::Get<bool>("BARD_SONG_EXTRA_MUSIC_USE_LINGERING_SONG_FEAT", false);
+static uint32_t s_CurrentSpellId;
 
 static CNWSCreatureStats *s_SneakAttackDamageRollCreatureStats = nullptr;
 static CNWSCreatureStats *s_DeathAttackDamageRollCreatureStats = nullptr;
@@ -1362,6 +1366,39 @@ NWNX_EXPORT ArgumentStack SetUseBaseItemTypeUnequippedAllowed(ArgumentStack&& ar
         return s_GetSlotFromItem->CallOriginal<uint32_t>(pThis, pItem);
     }, Hooks::Order::Late);
 
+
+    return {};
+}
+
+NWNX_EXPORT ArgumentStack SetSpellAutoQuicken(ArgumentStack&& args)
+{
+    const auto nSpellId = args.extract<int32_t>();
+      ASSERT_OR_THROW(nSpellId >= 0);
+
+    m_QuickenedSpells.insert(static_cast<uint32_t>(nSpellId));
+    LOG_INFO("Spell %d set to auto quicken", nSpellId);
+
+    // Hook AIActionCastSpell to get spell ID
+    static Hooks::Hook s_AIActionCastSpellHook = Hooks::HookFunction(&CNWSCreature::AIActionCastSpell,
+        +[](CNWSCreature *pCreature, CNWSObjectActionNode *pNode) -> uint32_t
+        {
+            s_CurrentSpellId = pNode->m_pParameter[0];
+
+            return s_AIActionCastSpellHook->CallOriginal<uint32_t>(pCreature, pNode);
+        }, Hooks::Order::Early);
+
+    static Hooks::Hook s_StartCombatRoundCastHook = Hooks::HookFunction(&CNWSCombatRound::StartCombatRoundCast,
+        +[](CNWSCombatRound *pThis, uint32_t nRoundLength) -> void
+        {
+            // Check if the current spell should be quickened
+            if (m_QuickenedSpells.find(s_CurrentSpellId) != m_QuickenedSpells.end())
+                nRoundLength = 3000;
+
+            // Reset for next spell
+            s_CurrentSpellId = 0;
+
+            s_StartCombatRoundCastHook->CallOriginal<void>(pThis, nRoundLength);
+        }, Hooks::Order::Late);
 
     return {};
 }

@@ -71,6 +71,9 @@ void NWNX_CormyrDalelands_SetCreatureAge(object oCreature, int nAge);
 /// @param bAllow Whether to allow the item type to be useable while unequipped.
 void NWNX_CormyrDalelands_SetUseBaseItemTypeUnequippedAllowed(int nBaseItemType, int bAllow);
 
+/// @brief Set whether a spell should be quickened (3 second cast time)
+/// @param nSpellId The spell ID to modify
+void NWNX_CormyrDalelands_SetSpellQuicken(int nSpellId);
 /// @}
 
 int NWNX_CormyrDalelands_GetCreatureIncorporealFlag(object oCreature)
@@ -168,4 +171,10 @@ void NWNX_CormyrDalelands_SetUseBaseItemTypeUnequippedAllowed(int nBaseItemType,
     NWNXPushInt(bAllow);
     NWNXPushInt(nBaseItemType);
     NWNXCall(NWNX_CormyrDalelands, "SetUseBaseItemTypeUnequippedAllowed");
+}
+
+void NWNX_CormyrDalelands_SetSpellAutoQuicken(int nSpellId)
+{
+    NWNXPushInt(nSpellId);
+    NWNXCall(NWNX_CormyrDalelands, "SetSpellAutoQuicken");
 }
