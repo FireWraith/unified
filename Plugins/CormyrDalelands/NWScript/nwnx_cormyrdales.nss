@@ -1,6 +1,5 @@
 /// @addtogroup cormyrdalelands CormyrDalelands
 /// @brief Cormyr and the Dalelands NWNX plugin
-/// @{
 /// @file nwnx_cormyrdales.nss
 
 const string NWNX_CormyrDalelands = "NWNX_CormyrDalelands"; ///< @private
@@ -74,7 +73,11 @@ void NWNX_CormyrDalelands_SetUseBaseItemTypeUnequippedAllowed(int nBaseItemType,
 /// @brief Set whether a spell should be quickened (3 second cast time)
 /// @param nSpellId The spell ID to modify
 void NWNX_CormyrDalelands_SetSpellQuicken(int nSpellId);
-/// @}
+
+/// @brief Sets a class to add its class levels to smite evil damage calculation.
+/// @brief Compatible with Great Smiting ruleset entries
+/// @param nClassID The class.
+void NWNX_CormyrDalelands_SetClassProgressesSmiteEvil(int nClassID);
 
 int NWNX_CormyrDalelands_GetCreatureIncorporealFlag(object oCreature)
 {
@@ -177,4 +180,10 @@ void NWNX_CormyrDalelands_SetSpellAutoQuicken(int nSpellId)
 {
     NWNXPushInt(nSpellId);
     NWNXCall(NWNX_CormyrDalelands, "SetSpellAutoQuicken");
+}
+
+void NWNX_CormyrDalelands_SetClassProgressesSmiteEvil(int nClassID)
+{
+    NWNXPushInt(nClassID);
+    NWNXCall(NWNX_CormyrDalelands, "SetClassProgressesSmiteEvil");
 }

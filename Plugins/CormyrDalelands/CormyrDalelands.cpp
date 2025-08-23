@@ -40,7 +40,6 @@ static std::set<uint32_t> m_QuickenedSpells;
 
 const static int32_t ITEM_PROPERTY_GHOST_TOUCH_WEAPON = 213;
 
-const static uint8_t CLASS_TYPE_WINDWALKER = 76;
 const static uint8_t CLASS_TYPE_TEMPEST = 86;
 const static uint16_t FEAT_TEMPEST_AMBIDEXTERITY_1 = 2483;
 const static uint16_t FEAT_TEMPEST_AMBIDEXTERITY_2 = 2486;
@@ -129,6 +128,11 @@ static std::set<std::uint8_t> m_SneakAttackUncannyDodgeClasses = {
 
 static std::set<std::uint8_t> m_BardSongUsesProgressingClasses = {
     Constants::ClassType::Bard
+};
+
+static std::set<std::uint8_t> m_SmiteEvilProgressingClasses = {
+    Constants::ClassType::Paladin,
+    Constants::ClassType::DivineChampion
 };
 
 static std::set<std::uint32_t> m_BaseItemsAllowUseUnequipped;
@@ -547,8 +551,8 @@ NWNX_EXPORT ArgumentStack SetFeatIsDeathAttackFeat(ArgumentStack&& args)
         +[](CNWSCreatureStats *pThis, CNWSObject *pTarget, BOOL bOffHand, BOOL bCritical, BOOL bSneakAttack, BOOL bDeathAttack, BOOL bForceMax = false) -> int32_t
         {
             if (!bDeathAttack)
-                return s_GetDamageRollHook->CallOriginal<int32_t>(pThis, pTarget, bOffHand, bCritical, bSneakAttack, bDeathAttack, bForceMax);;
-
+                return s_GetDamageRollHook->CallOriginal<int32_t>(pThis, pTarget, bOffHand, bCritical, bSneakAttack, bDeathAttack, bForceMax);
+ 
             s_DeathAttackDamageRollCreatureStats = pThis;
             auto retval = s_GetDamageRollHook->CallOriginal<int32_t>(pThis, pTarget, bOffHand, bCritical, bSneakAttack, bDeathAttack, bForceMax);
             s_DeathAttackDamageRollCreatureStats = nullptr;
@@ -645,6 +649,69 @@ NWNX_EXPORT ArgumentStack SetNaturalBaseACModifierFeat(ArgumentStack&& args)
             }
 
             return retval;
+        }, Hooks::Order::Late);
+
+    return {};
+}
+
+NWNX_EXPORT ArgumentStack SetClassProgressesSmiteEvil(ArgumentStack&& args)
+{
+    const auto nClassId = args.extract<int32_t>();
+      ASSERT_OR_THROW(nClassId >= Constants::ClassType::MIN);
+      ASSERT_OR_THROW(nClassId <= Constants::ClassType::MAX);
+
+    CNWClass *pClass = nClassId < Globals::Rules()->m_nNumClasses ? &Globals::Rules()->m_lstClasses[nClassId] : nullptr;
+      ASSERT_OR_THROW(pClass != nullptr);
+
+    //Add the class to the list of Smite Evil classes
+    m_SmiteEvilProgressingClasses.insert(nClassId);
+    LOG_INFO("Class %s [%d] set as Smite Evil progressing class", pClass->GetNameText(), nClassId); 
+
+    static Hooks::Hook s_GetDamageRollHook =
+        Hooks::HookFunction(&CNWSCreatureStats::ResolveSpecialAttackDamageBonus,
+        +[](CNWSCreatureStats *thisPtr, CNWSCreature *pTarget) -> int32_t
+        {
+            // Get the creature using this stats block
+            CNWSCreature* pThis = thisPtr->m_pBaseCreature;
+            if (!pThis)
+                return s_GetDamageRollHook->CallOriginal<int32_t>(thisPtr, pTarget);
+
+            CNWSCombatAttackData *pAttackData = pThis->m_pcCombatRound->GetAttack(pThis->m_pcCombatRound->m_nCurrentAttack);
+
+            // Early exit if not a smite evil attack
+            if (!pAttackData || pAttackData->m_nAttackType != Constants::Feat::SmiteEvil || !pTarget || pTarget->m_pStats->m_nAlignmentGoodEvil >= 30)
+                return s_GetDamageRollHook->CallOriginal<int32_t>(thisPtr, pTarget);
+
+            // Calculate Epic Great Smiting rank - pre-hashed for performance
+            int nSmiteRank = 1;
+            auto nBaseFeat = Constants::Feat::EpicGreatSmiting1 - 1;
+            
+            // Pre-computed hashed ruleset entries for Epic Great Smiting
+            static const uint64_t epicSmitingHashes[] = {
+                0, // index 0 unused
+                CRULES_HASHEDSTR("EPIC_GREAT_SMITING_1"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_2"), 
+                CRULES_HASHEDSTR("EPIC_GREAT_SMITING_3"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_4"),
+                CRULES_HASHEDSTR("EPIC_GREAT_SMITING_5"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_6"), 
+                CRULES_HASHEDSTR("EPIC_GREAT_SMITING_7"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_8"),
+                CRULES_HASHEDSTR("EPIC_GREAT_SMITING_9"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_10")
+            };
+            
+            for (int i = 10; i > 0; --i)
+            {
+                if (thisPtr->HasFeat(nBaseFeat + i))
+                {
+                    nSmiteRank = Globals::Rules()->GetRulesetIntEntry(epicSmitingHashes[i], i);
+                    break;
+                }
+            }
+
+            // Sum levels from all configured smite evil progressing classes
+            int nTotalLevels = 0;
+            for (const auto &classId : m_SmiteEvilProgressingClasses)
+                nTotalLevels += thisPtr->GetNumLevelsOfClass(classId);
+
+            int nTotalDamage = nTotalLevels * nSmiteRank;
+            return nTotalDamage;
         }, Hooks::Order::Late);
 
     return {};
