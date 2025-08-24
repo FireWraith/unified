@@ -146,7 +146,6 @@ static int32_t s_TempestAmbidexterityModifier;
 static bool s_InUseItemAllowUnequipped;
 static bool s_BardSongExtraMusicByCharismaModifier = Config::Get<bool>("BARD_SONG_EXTRA_MUSIC_BY_CHARISMA_MOD", false);
 static bool s_LingeringSongExtraMusic = Config::Get<bool>("BARD_SONG_EXTRA_MUSIC_USE_LINGERING_SONG_FEAT", false);
-static uint32_t s_CurrentSpellId;
 
 static CNWSCreatureStats *s_SneakAttackDamageRollCreatureStats = nullptr;
 static CNWSCreatureStats *s_DeathAttackDamageRollCreatureStats = nullptr;
@@ -686,7 +685,6 @@ NWNX_EXPORT ArgumentStack SetClassProgressesSmiteEvil(ArgumentStack&& args)
             int nSmiteRank = 1;
             auto nBaseFeat = Constants::Feat::EpicGreatSmiting1 - 1;
             
-            // Pre-computed hashed ruleset entries for Epic Great Smiting
             static const uint64_t epicSmitingHashes[] = {
                 0, // index 0 unused
                 CRULES_HASHEDSTR("EPIC_GREAT_SMITING_1"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_2"), 
@@ -1442,6 +1440,7 @@ NWNX_EXPORT ArgumentStack SetSpellAutoQuicken(ArgumentStack&& args)
     const auto nSpellId = args.extract<int32_t>();
       ASSERT_OR_THROW(nSpellId >= 0);
 
+    // Add spell ID to the list of auto quickened spells
     m_QuickenedSpells.insert(static_cast<uint32_t>(nSpellId));
     LOG_INFO("Spell %d set to auto quicken", nSpellId);
 
@@ -1449,7 +1448,7 @@ NWNX_EXPORT ArgumentStack SetSpellAutoQuicken(ArgumentStack&& args)
     static Hooks::Hook s_AIActionCastSpellHook = Hooks::HookFunction(&CNWSCreature::AIActionCastSpell,
         +[](CNWSCreature *pCreature, CNWSObjectActionNode *pNode) -> uint32_t
         {
-            s_CurrentSpellId = pNode->m_pParameter[0];
+            pCreature->nwnxSet("QUICKEN_CURRENT_SPELL", static_cast<int>(pNode->m_pParameter[0]));
 
             return s_AIActionCastSpellHook->CallOriginal<uint32_t>(pCreature, pNode);
         }, Hooks::Order::Early);
@@ -1458,11 +1457,12 @@ NWNX_EXPORT ArgumentStack SetSpellAutoQuicken(ArgumentStack&& args)
         +[](CNWSCombatRound *pThis, uint32_t nRoundLength) -> void
         {
             // Check if the current spell should be quickened
-            if (m_QuickenedSpells.find(s_CurrentSpellId) != m_QuickenedSpells.end())
-                nRoundLength = 3000;
-
-            // Reset for next spell
-            s_CurrentSpellId = 0;
+            if (auto spellId = pThis->m_pBaseCreature->nwnxGet<int>("QUICKEN_CURRENT_SPELL"))
+            {
+                if (m_QuickenedSpells.find(*spellId) != m_QuickenedSpells.end())
+                    nRoundLength = 3000;
+                pThis->m_pBaseCreature->nwnxRemove("QUICKEN_CURRENT_SPELL");
+            }
 
             s_StartCombatRoundCastHook->CallOriginal<void>(pThis, nRoundLength);
         }, Hooks::Order::Late);
