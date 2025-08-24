@@ -174,7 +174,7 @@ _______________________________________
     SLOT                  | int    | |
 
     @note This event does not run on login as the base game OnPlayerEquipItem event does. (Because this event hooks CNWSCreature::RunEquip which calls CNWSCreature::EquipItem. When the player character is first loaded, EquipItem is called directly.)
-    @note If the goal is to prevent items from being equiped under certain conditions, and since this event does not run on login, it could be helpful to additionally use NWNX_Creature_RunUnequip() in the OnClientEnter (or similar) event.
+    @note If the goal is to prevent items from being equipped under certain conditions, and since this event does not run on login, it could be helpful to additionally use NWNX_Creature_RunUnequip() in the OnClientEnter (or similar) event.
 
 _______________________________________
     ## Item Unequip Events
@@ -1785,6 +1785,22 @@ _______________________________________
           \code{.c}
           NWNX_Events_AddIDToWhitelist("NWNX_ON_ITEMPROPERTY_EFFECT", ITEM_PROPERTY_*);
           \endcode
+    _______________________________________
+    ## Ability Change Events
+    - NWNX_ON_ABILITY_CHANGE_BEFORE
+    - NWNX_ON_ABILITY_CHANGE_AFTER
+
+    `OBJECT_SELF` = The player object
+
+    Event Data Tag        | Type | Notes
+    ----------------------|------|-------
+    ABILITY               | int  | The ABILITY_* constant                             |
+    VALUE                 | int  | The new ability value                              |
+    MOD                   | int  | The new ability modifier (only available in AFTER) |
+
+    @note The event only fires for players. It might fire a few times during (before) client enter when all the items are equipped and one or more of them have a bonus to abilities. To detect and possibly skip events happening before client enter one can use `GetIsObjectValid(GetArea(OBJECT_SELF))`.
+
+    @warning The nwscript function GetAbilityModifier() will return the **old** modifier when used in this event. Use the MOD event data to get the new value.
 */
 
 /// @name Events Event Constants
