@@ -5,5 +5,4 @@ add_plugin(Experimental
     "UnhardcodeRangerDualWield.cpp"
     "PlayerHitpointsAsPercentage.cpp"
     "IgnoreModuleVersion.cpp"
-    "EndCombatRoundAfterSpellcast.cpp"
-    "SkipCorruptBICFilesOnCharList.cpp")
+    "EndCombatRoundAfterSpellcast.cpp")
