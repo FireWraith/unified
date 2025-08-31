@@ -10,6 +10,7 @@
 #include "API/CNWSVirtualMachineCommands.hpp"
 #include "API/CNWSArea.hpp"
 #include "API/CNWSCreature.hpp"
+#include "API/CNWSObject.hpp"
 #include "API/CNWSCreatureStats.hpp"
 #include "API/CNWSCombatAttackData.hpp"
 #include "API/CNWSCombatRound.hpp"
@@ -20,6 +21,8 @@
 #include "API/CNWBaseItem.hpp"
 #include "API/CNWCCMessageData.hpp"
 #include "API/CNWSItem.hpp"
+#include "API/CNWSItemPropertyHandler.hpp"
+#include "API/CNWItemProperty.hpp"
 #include "API/CNWRules.hpp"
 #include "API/CNWVisibilityNode.hpp"
 #include "API/CServerExoApp.hpp"
@@ -1470,4 +1473,67 @@ NWNX_EXPORT ArgumentStack SetSpellAutoQuicken(ArgumentStack&& args)
     return {};
 }
 
+void CustomHolyAvengerProperty() __attribute__((constructor));
+void CustomHolyAvengerProperty()
+{
+    if (!Config::Get<bool>("ENABLE_CUSTOM_HOLY_AVENGER", false))
+        return;
+
+    LOG_INFO("Custom Holy Avenger property enabled");
+
+    static Hooks::Hook s_ApplyHolyAvengerHook = Hooks::HookFunction(&CNWSItemPropertyHandler::ApplyHolyAvenger,
+        +[](CNWSItemPropertyHandler *pThis, CNWSItem *pItem, CNWItemProperty* /*pItemProperty*/, CNWSCreature *pCreature, uint32_t nInventorySlot, BOOL bLoadingGame) -> int32_t
+        {
+            if (!pCreature || !pItem || !pCreature->m_pStats)
+                return 0;
+
+            auto *pStats = pCreature->m_pStats;
+            auto nCharacterLevel = pStats->GetLevel(false);
+            auto nItemID = pItem->m_idSelf;
+
+            // 1. Level-based Enhancement Bonus
+            int32_t nEnhancementBonus = (nCharacterLevel >= 25) ? 6 : 5;
+            auto *pEnhancementProperty = new CNWItemProperty();
+            pEnhancementProperty->m_nPropertyName = Constants::ItemProperty::EnhancementBonus;
+            pEnhancementProperty->m_nSubType = 0;
+            pEnhancementProperty->m_nCostTable = 0;
+            pEnhancementProperty->m_nCostTableValue = nEnhancementBonus;
+            pEnhancementProperty->m_nParam1 = 0;
+            pEnhancementProperty->m_nParam1Value = 0;
+            pEnhancementProperty->m_nChanceOfAppearing = 100;
+            pEnhancementProperty->m_bUseable = true;
+            pEnhancementProperty->m_nUsesPerDay = -1; // Unlimited uses
+
+            // Apply the enhancement bonus
+            pThis->ApplyEnhancementBonus(pItem, pEnhancementProperty, pCreature, nInventorySlot, bLoadingGame);
+            delete pEnhancementProperty;
+
+            // 2. Scaling Spell Resistance
+            auto *pEffect = new CGameEffect(true);
+            pEffect->m_nType = Constants::EffectTrueType::SpellResistanceIncrease;
+            pEffect->SetDurationType(Constants::EffectDurationType::Equipped);
+            pEffect->SetCreator(nItemID);
+            int32_t nSpellResistance = 8 + nCharacterLevel;
+            pEffect->SetInteger(0, nSpellResistance);
+            pCreature->ApplyEffect(pEffect, bLoadingGame, false);
+
+            // 3. Radiant Damage Bonus: +1d8 vs Evil creatures
+            auto *pDamageBonusProperty = new CNWItemProperty();
+            pDamageBonusProperty->m_nPropertyName = Constants::ItemProperty::DamageBonusVSAlignmentGroup;
+            pDamageBonusProperty->m_nSubType = Constants::Alignment::Evil; // Evil alignment
+            pDamageBonusProperty->m_nCostTable = 4; // Points to IPRP_DAMAGECOST table
+            pDamageBonusProperty->m_nCostTableValue = 7; // 1d6 damage
+            pDamageBonusProperty->m_nParam1 = -1; // Damage type table index
+            pDamageBonusProperty->m_nParam1Value = 21; // Radiant damage group from damagetypes.2da
+            pDamageBonusProperty->m_nChanceOfAppearing = 100;
+            pDamageBonusProperty->m_bUseable = true;
+            pDamageBonusProperty->m_nUsesPerDay = -1; // Unlimited uses
+
+            // Apply the radiant damage bonus
+            pThis->ApplyDamageBonus(pItem, pDamageBonusProperty, pCreature, nInventorySlot, bLoadingGame);
+            delete pDamageBonusProperty;
+
+            return 1; // Success - don't call original
+        }, Hooks::Order::Final);
+}
 }
