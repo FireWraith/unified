@@ -26,9 +26,12 @@
 #include "API/CNWRules.hpp"
 #include "API/CNWVisibilityNode.hpp"
 #include "API/CServerExoApp.hpp"
+#include "API/CServerExoAppInternal.hpp"
 #include "API/CVirtualMachine.hpp"
 #include "API/CTlkTable.hpp"
 #include "API/CWorldTimer.hpp"
+#include "API/CTwoDimArrays.hpp"
+#include "API/C2DA.hpp"
 
 #include <set>
 #include <map>
@@ -1517,7 +1520,7 @@ void CustomHolyAvengerProperty()
             pEffect->SetInteger(0, nSpellResistance);
             pCreature->ApplyEffect(pEffect, bLoadingGame, false);
 
-            // 3. Radiant Damage Bonus: +1d8 vs Evil creatures
+            // 3. Radiant Damage Bonus: +1d6 vs Evil creatures
             auto *pDamageBonusProperty = new CNWItemProperty();
             pDamageBonusProperty->m_nPropertyName = Constants::ItemProperty::DamageBonusVSAlignmentGroup;
             pDamageBonusProperty->m_nSubType = Constants::Alignment::Evil; // Evil alignment
@@ -1536,4 +1539,122 @@ void CustomHolyAvengerProperty()
             return 1; // Success - don't call original
         }, Hooks::Order::Final);
 }
+
+// Fix for prestige class spell progression
+// This hooks GetSpellsKnownPerLevel to consider prestige class caster levels
+// when determining how many spells a character should know, preventing spell
+// removal during character loading.
+
+static Hooks::Hook s_GetSpellsKnownPerLevelHook;
+static Hooks::Hook s_ReadSpellsFromGffHook;
+static CNWSCreatureStats* s_pCurrentCreatureStats = nullptr;
+
+// Forward declarations
+static uint8_t GetSpellsKnownPerLevelHook(CNWClass* pClass, uint8_t nLevel, uint8_t nSpellLevel, uint8_t nClass, uint16_t nRace, uint8_t nCastingAbilityBase);
+static void ReadSpellsFromGffHook(CNWSCreatureStats* pCreatureStats, CResGFF* pRes, CResStruct* pGffStructWithCreatureStats, BOOL bDefaultUnsavedSpellsAsReadied);
+
+void FixPrestigeClassSpellProgression() __attribute__((constructor));
+void FixPrestigeClassSpellProgression()
+{
+    LOG_INFO("Spontaneous caster PRC GetSpellsKnownPerLevel spell progression override enabled");
+
+    s_GetSpellsKnownPerLevelHook = Hooks::HookFunction(
+        &CNWClass::GetSpellsKnownPerLevel,
+        &GetSpellsKnownPerLevelHook, Hooks::Order::Early);
+
+    // Hook ReadSpellsFromGff - this is where spells are loaded and validated from character files
+    s_ReadSpellsFromGffHook = Hooks::HookFunction(
+        &CNWSCreatureStats::ReadSpellsFromGff,
+        &ReadSpellsFromGffHook, Hooks::Order::Early);
+}
+
+static void ReadSpellsFromGffHook(CNWSCreatureStats* pCreatureStats, CResGFF* pRes, CResStruct* pGffStructWithCreatureStats, BOOL bDefaultUnsavedSpellsAsReadied)
+{
+    // Set creature context for spell validation during spell reading
+    s_pCurrentCreatureStats = pCreatureStats;
+    
+    s_ReadSpellsFromGffHook->CallOriginal<void>(pCreatureStats, pRes, pGffStructWithCreatureStats, bDefaultUnsavedSpellsAsReadied);
+    
+    // Clear context after spell reading
+    s_pCurrentCreatureStats = nullptr;
+}
+
+// Helper function to get prestige class caster levels for a specific class
+static int32_t GetPrestigeClassCasterLevels(uint8_t nClassId)
+{
+    if (!s_pCurrentCreatureStats)
+        return 0;
+
+    auto* pStats = s_pCurrentCreatureStats;
+    auto* pRules = Globals::Rules();
+    auto* p2DA = pRules->m_p2DArrays->GetCached2DA("classes", true);
+    
+    if (!p2DA)
+        return 0;
+
+    p2DA->Load2DArray();
+
+    // Get the caster type (arcane/divine) of the target class
+    int spellCaster, arcane;
+    if (!p2DA->GetINTEntry(nClassId, "SpellCaster", &spellCaster) || !spellCaster)
+        return 0;
+    
+    if (!p2DA->GetINTEntry(nClassId, "Arcane", &arcane))
+        return 0;
+
+    bool bIsArcane = arcane != 0;
+    const char* modColumn = bIsArcane ? "ArcSpellLvlMod" : "DivSpellLvlMod";
+
+    int32_t nBonusLevels = 0;
+    
+    // Look through all the character's classes for prestige classes that advance this caster type
+    for (int i = 0; i < pStats->m_nNumMultiClasses; i++)
+    {
+        auto nCurrentClassId = pStats->m_ClassInfo[i].m_nClass;
+        auto nClassLevel = pStats->m_ClassInfo[i].m_nLevel;
+        
+        if (nCurrentClassId == nClassId) // Skip the target class itself
+            continue;
+
+        int value;
+        if (p2DA->GetINTEntry(nCurrentClassId, modColumn, &value))
+        {
+            if (value > 0 && nClassLevel > 0)
+            {
+                int bonus = (nClassLevel - 1) / value + 1;
+                nBonusLevels += bonus;
+            }
+        }
+    }
+    
+    return nBonusLevels;
+}
+
+static uint8_t GetSpellsKnownPerLevelHook(CNWClass* pClass, uint8_t nLevel, uint8_t nSpellLevel, uint8_t nClass, uint16_t nRace, uint8_t nCastingAbilityBase)
+{
+    auto retVal = s_GetSpellsKnownPerLevelHook->CallOriginal<uint8_t>(pClass, nLevel, nSpellLevel, nClass, nRace, nCastingAbilityBase);
+    
+    // If we have creature context, always check for prestige class bonuses
+    if (s_pCurrentCreatureStats)
+    {
+        int32_t nPrestigeLevels = GetPrestigeClassCasterLevels(nClass);
+        
+        if (nPrestigeLevels > 0)
+        {
+            // Try with the effective caster level (base + prestige bonuses)
+            uint8_t nEffectiveLevel = std::min(255, static_cast<int>(nLevel) + nPrestigeLevels);
+            auto nPrestigeRetVal = s_GetSpellsKnownPerLevelHook->CallOriginal<uint8_t>(pClass, nEffectiveLevel, nSpellLevel, nClass, nRace, nCastingAbilityBase);
+            
+            if (nPrestigeRetVal > retVal)
+            {
+                LOG_DEBUG("Prestige class spell progression: Class %d L%d (+%d) spell level %d increased from %d to %d", 
+                         nClass, nLevel, nPrestigeLevels, nSpellLevel, retVal, nPrestigeRetVal);
+                retVal = nPrestigeRetVal;
+            }
+        }
+    }
+
+    return retVal;
+}
+
 }
