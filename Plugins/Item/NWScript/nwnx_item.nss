@@ -84,7 +84,8 @@ string NWNX_Item_GetEntireItemAppearance(object oItem);
 /// @brief Restores an item's appearance using the value retrieved through NWNX_Item_GetEntireItemAppearance().
 /// @param oItem The item object.
 /// @param sApp A string representing the item's appearance.
-void NWNX_Item_RestoreItemAppearance(object oItem, string sApp);
+/// @param bUpdateCreatureAppearance If TRUE, also update the appearance of oItem's possessor. Only works for armor/helmets/cloaks. Will remove the item from the quickbar as side effect.
+void NWNX_Item_RestoreItemAppearance(object oItem, string sApp, int bUpdateCreatureAppearance = FALSE);
 
 /// @brief Get an item's base armor class
 /// @param oItem The item object.
@@ -190,8 +191,9 @@ string NWNX_Item_GetEntireItemAppearance(object oItem)
     return NWNXPopString();
 }
 
-void NWNX_Item_RestoreItemAppearance(object oItem, string sApp)
+void NWNX_Item_RestoreItemAppearance(object oItem, string sApp, int bUpdateCreatureAppearance = FALSE)
 {
+    NWNXPushInt(bUpdateCreatureAppearance);
     NWNXPushString(sApp);
     NWNXPushObject(oItem);
     NWNXCall(NWNX_Item, "RestoreItemAppearance");

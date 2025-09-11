@@ -200,6 +200,7 @@ NWNX_EXPORT ArgumentStack RestoreItemAppearance(ArgumentStack&& args)
     if (auto *pItem = Utils::PopItem(args))
     {
         const auto sAppString = args.extract<std::string>();
+        const auto bUpdateCreatureAppearance = !!args.extract<int32_t>();
         const auto strLength = sAppString.length();
         size_t stringPos = 0;
 
@@ -282,6 +283,33 @@ NWNX_EXPORT ArgumentStack RestoreItemAppearance(ArgumentStack&& args)
             }
         }
         pItem->m_nArmorValue = pItem->ComputeArmorClass();
+
+        if (auto *pPossessor= Utils::AsNWSCreature(Utils::GetGameObject(pItem->m_oidPossessor)))
+        {
+            if (!bUpdateCreatureAppearance || !pPossessor->m_pInventory->GetItemInInventory(pItem))
+                return {};
+            uint32_t nSlot = pPossessor->m_pInventory->GetSlotFromItem(pItem);
+            if (nSlot != Constants::EquipmentSlot::Head && nSlot != Constants::EquipmentSlot::Chest && nSlot != Constants::EquipmentSlot::Cloak)
+                return {};
+
+            auto *pMessage = Globals::AppManager()->m_pServerExoApp->GetNWSMessage();
+            for (auto *pPlayer : Globals::AppManager()->m_pServerExoApp->GetPlayerList())
+            {
+                if (auto *pLUO = pPlayer->GetLastUpdateObject(pPossessor->m_idSelf))
+                {
+#define UPDATE_ITEM_APPEARANCE(oid)                                                                 \
+                    if (oid == pItem->m_idSelf) {                                                   \
+                        oid = Constants::OBJECT_INVALID;                                            \
+                        pMessage->SendServerPlayerItemUpdate_DestroyItem(pPlayer, pItem->m_idSelf); \
+                    }
+
+                    UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidHeadItem)
+                    UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidChestItem)
+                    UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidCloakItem)
+#undef UPDATE_ITEM_APPEARANCE
+                }
+            }
+        }
     }
     else
     {
