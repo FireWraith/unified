@@ -55,6 +55,7 @@ static Hooks::Hook s_GetClassLevelHook = nullptr;
 
 static std::unordered_map<uint8_t, std::unordered_map<ObjectID, int16_t>> s_RollModifier;
 static std::unordered_map<ObjectID, bool> s_ParryAllAttacks;
+static std::unordered_map<ObjectID, uint8_t> s_DamageLevelOverride;
 
 NWNX_EXPORT ArgumentStack AddFeat(ArgumentStack&& args)
 {
@@ -2221,8 +2222,20 @@ NWNX_EXPORT ArgumentStack OverrideDamageLevel(ArgumentStack&& args)
     static Hooks::Hook pGetDamageLevelHook = Hooks::HookFunction(&CNWSObject::GetDamageLevel,
         +[](CNWSObject *pThis) -> uint8_t
         {
+            // Use in-memory cache instead of querying POS on every call (hot path optimization)
+            auto it = s_DamageLevelOverride.find(pThis->m_idSelf);
+            if (it != s_DamageLevelOverride.end())
+                return it->second;
+            
+            // On cache miss, check POS once and cache the result
             auto damageLevel = pThis->nwnxGet<int>("CREATURE_DAMAGE_LEVEL_OVERRIDE");
-            return damageLevel.value_or(pGetDamageLevelHook->CallOriginal<uint8_t>(pThis));
+            if (damageLevel)
+            {
+                s_DamageLevelOverride[pThis->m_idSelf] = static_cast<uint8_t>(*damageLevel);
+                return static_cast<uint8_t>(*damageLevel);
+            }
+            
+            return pGetDamageLevelHook->CallOriginal<uint8_t>(pThis);
         }, Hooks::Order::Late);
 
     if (auto* pCreature = Utils::PopCreature(args))
@@ -2231,9 +2244,17 @@ NWNX_EXPORT ArgumentStack OverrideDamageLevel(ArgumentStack&& args)
           ASSERT_OR_THROW(damageLevel <= 255);
 
         if (damageLevel < 0)
+        {
+            // Clear both cache and POS storage
+            s_DamageLevelOverride.erase(pCreature->m_idSelf);
             pCreature->nwnxRemove("CREATURE_DAMAGE_LEVEL_OVERRIDE");
+        }
         else
+        {
+            // Set cache for fast lookups, POS for persistence
+            s_DamageLevelOverride[pCreature->m_idSelf] = static_cast<uint8_t>(damageLevel);
             pCreature->nwnxSet("CREATURE_DAMAGE_LEVEL_OVERRIDE", damageLevel);
+        }
     }
 
     return {};
