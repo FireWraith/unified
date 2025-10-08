@@ -280,6 +280,20 @@ _______________________________________
     ACTION_RESULT         | int    | TRUE/FALSE, only in _AFTER events
 
 _______________________________________
+    ## Feat Decrement Remaining Uses Events
+    - NWNX_ON_DECREMENT_REMAINING_FEAT_USES_BEFORE
+    - NWNX_ON_DECREMENT_REMAINING_FEAT_USES_AFTER
+
+    `OBJECT_SELF` = The object owning the feat
+
+    Event Data Tag        | Type   | Notes |
+    ----------------------|--------|-------|
+    FEAT_ID               | int    | |
+    REMAINING_USES        | int    | Decremented by 1 in the _AFTER event if the _BEFORE event wasn't skipped |
+
+    @note Skipping the _BEFORE event will prevent the feat uses being decremented
+
+_______________________________________
     ## Has Feat Events
     - NWNX_ON_HAS_FEAT_BEFORE
     - NWNX_ON_HAS_FEAT_AFTER
@@ -1765,6 +1779,7 @@ _______________________________________
     LOADING_GAME          | int    | TRUE if the itemproperty is being applied when loading into the game and not due to equipping the item. |
     INVENTORY_SLOT        | int    | The INVENTORY_SLOT_* the item is (un)equipped to/from. |
     PROPERTY              | int    | The ITEM_PROPERTY_* type. |
+    ID                    | int    | The ID of the item property. |
     SUBTYPE               | int    | The subtype of the itemproperty. |
     TAG                   | string | The optional tag set by TagItemProperty() |
     COST_TABLE            | int    | The index into iprp_costtable.2da |
@@ -1856,6 +1871,8 @@ const string NWNX_ON_ITEM_ACQUIRE_BEFORE = "NWNX_ON_ITEM_ACQUIRE_BEFORE";
 const string NWNX_ON_ITEM_ACQUIRE_AFTER = "NWNX_ON_ITEM_ACQUIRE_AFTER";
 const string NWNX_ON_USE_FEAT_BEFORE = "NWNX_ON_USE_FEAT_BEFORE";
 const string NWNX_ON_USE_FEAT_AFTER = "NWNX_ON_USE_FEAT_AFTER";
+const string NWNX_ON_DECREMENT_REMAINING_FEAT_USES_BEFORE = "NWNX_ON_DECREMENT_REMAINING_FEAT_USES_BEFORE";
+const string NWNX_ON_DECREMENT_REMAINING_FEAT_USES_AFTER = "NWNX_ON_DECREMENT_REMAINING_FEAT_USES_AFTER";
 const string NWNX_ON_HAS_FEAT_BEFORE = "NWNX_ON_HAS_FEAT_BEFORE";
 const string NWNX_ON_HAS_FEAT_AFTER = "NWNX_ON_HAS_FEAT_AFTER";
 const string NWNX_ON_DM_GIVE_GOLD_BEFORE = "NWNX_ON_DM_GIVE_GOLD_BEFORE";
@@ -2309,6 +2326,7 @@ string NWNX_Events_GetEventData(string tag);
 /// - CharacterSheetPermitted event
 /// - Input Drop Item
 /// - Decrement Spell Count event
+/// - Decrement Remaining Feat Uses event
 /// - Play Visual Effect event
 /// - EventScript event
 /// - Broadcast Safe Projectile event
