@@ -1022,10 +1022,9 @@ NWNX_EXPORT ArgumentStack PossessCreature(ArgumentStack&& args)
                         {
                             auto *eff = pPossessor->m_appliedEffects.element[i];
                             if (eff->m_nType == Constants::EffectTrueType::Immunity &&
-                                eff->m_nSubType == Constants::EffectSubType::Magical &&
+                                eff->GetSubType_Magical() &&
+                                eff->GetDurationType() == Constants::EffectDurationType::Permanent &&
                                 eff->m_oidCreator == pPossessor->m_idSelf &&
-                                eff->m_fDuration == 4.0f &&
-                                eff->m_nCasterLevel == -1 &&
                                 eff->m_nParamInteger[0] == Constants::ImmunityType::MindSpells &&
                                 eff->m_nParamInteger[1] == Constants::RacialType::Invalid)
                             {
@@ -1103,10 +1102,9 @@ NWNX_EXPORT ArgumentStack PossessCreature(ArgumentStack&& args)
         {
             auto *eff = pPossessor->m_appliedEffects.element[i];
             if (eff->m_nType == Constants::EffectTrueType::Immunity &&
-                eff->m_nSubType == Constants::EffectSubType::Magical &&
+                eff->GetSubType_Magical() &&
+                eff->GetDurationType() == Constants::EffectDurationType::Permanent &&
                 eff->m_oidCreator == pPossessor->m_idSelf &&
-                eff->m_fDuration == 4.0f &&
-                eff->m_nCasterLevel == -1 &&
                 eff->m_nParamInteger[0] == Constants::ImmunityType::MindSpells &&
                 eff->m_nParamInteger[1] == Constants::RacialType::Invalid)
             {
