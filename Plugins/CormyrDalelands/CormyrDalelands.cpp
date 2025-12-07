@@ -1657,4 +1657,95 @@ static uint8_t GetSpellsKnownPerLevelHook(CNWClass* pClass, uint8_t nLevel, uint
     return retVal;
 }
 
+// ==================== Familiar Level Scaling for Prestige Classes ====================
+// Allows arcane prestige classes to contribute their levels to familiar level calculation
+
+// Class IDs for arcane prestige classes that should contribute to familiar level
+static const std::set<uint8_t> s_FamiliarLevelProgressingClasses = {
+    51,  // Archmage
+    60,  // Arcane Trickster
+    80,  // Eldritch Knight / Arcane Warrior
+    63,  // Harper Mage
+    64,  // Shadow Adept
+    59,  // Mystic Theurge
+    65,  // Red Wizard
+    67,  // War Wizard
+    52,  // Bladesinger
+    34,  // Palemaster
+    72,  // Demonic Servitor
+    62,  // Dragonsong Lyrist
+    90,  // Draconic Inheritor
+    44,  // Wild Mage
+};
+
+static Hooks::Hook s_SummonFamiliarHook;
+
+static void SummonFamiliarHook(CNWSCreature* pCreature);
+
+void FamiliarLevelScaling() __attribute__((constructor));
+void FamiliarLevelScaling()
+{
+    LOG_INFO("Familiar level scaling for arcane prestige classes enabled");
+
+    s_SummonFamiliarHook = Hooks::HookFunction(
+        &CNWSCreature::SummonFamiliar,
+        &SummonFamiliarHook, Hooks::Order::Early);
+}
+
+static void SummonFamiliarHook(CNWSCreature* pCreature)
+{
+    auto* pStats = pCreature->m_pStats;
+    if (!pStats)
+    {
+        s_SummonFamiliarHook->CallOriginal<void>(pCreature);
+        return;
+    }
+
+    // Calculate bonus levels from arcane prestige classes
+    int32_t nBonusLevels = 0;
+    for (int i = 0; i < pStats->m_nNumMultiClasses; i++)
+    {
+        auto nClassId = pStats->m_ClassInfo[i].m_nClass;
+        auto nClassLevel = pStats->m_ClassInfo[i].m_nLevel;
+
+        if (s_FamiliarLevelProgressingClasses.count(nClassId))
+        {
+            nBonusLevels += nClassLevel;
+        }
+    }
+
+    if (nBonusLevels > 0)
+    {
+        // Temporarily boost wizard or sorcerer level to affect familiar level
+        // The game uses SpellCaster classes with MinAssociateLevel to calculate familiar level
+        // We'll temporarily add levels to the first wizard/sorcerer class we find
+        int nWizardIdx = -1;
+        int nSorcererIdx = -1;
+        
+        for (int i = 0; i < pStats->m_nNumMultiClasses; i++)
+        {
+            auto nClassId = pStats->m_ClassInfo[i].m_nClass;
+            if (nClassId == Constants::ClassType::Wizard && nWizardIdx < 0)
+                nWizardIdx = i;
+            else if (nClassId == Constants::ClassType::Sorcerer && nSorcererIdx < 0)
+                nSorcererIdx = i;
+        }
+
+        int nTargetIdx = (nWizardIdx >= 0) ? nWizardIdx : nSorcererIdx;
+        
+        if (nTargetIdx >= 0)
+        {
+            uint8_t nOriginalLevel = pStats->m_ClassInfo[nTargetIdx].m_nLevel;
+            uint8_t nBoostedLevel = static_cast<uint8_t>(std::min(255, static_cast<int>(nOriginalLevel) + nBonusLevels));
+            
+            pStats->m_ClassInfo[nTargetIdx].m_nLevel = nBoostedLevel;
+            s_SummonFamiliarHook->CallOriginal<void>(pCreature);
+            pStats->m_ClassInfo[nTargetIdx].m_nLevel = nOriginalLevel;
+            return;
+        }
+    }
+
+    s_SummonFamiliarHook->CallOriginal<void>(pCreature);
+}
+
 }
