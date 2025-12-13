@@ -1664,7 +1664,8 @@ static uint8_t GetSpellsKnownPerLevelHook(CNWClass* pClass, uint8_t nLevel, uint
 static const std::set<uint8_t> s_FamiliarLevelProgressingClasses = {
     51,  // Archmage
     60,  // Arcane Trickster
-    80,  // Eldritch Knight / Arcane Warrior
+    80,  // Arcane Warrior
+    55,  // Eldritch Knight
     63,  // Harper Mage
     64,  // Shadow Adept
     59,  // Mystic Theurge
@@ -1746,6 +1747,90 @@ static void SummonFamiliarHook(CNWSCreature* pCreature)
     }
 
     s_SummonFamiliarHook->CallOriginal<void>(pCreature);
+}
+
+// ==================== Animal Companion Level Scaling ====================
+// If Druid + Ranger levels are at least half the character's total level,
+// all class levels contribute to animal companion level calculation
+
+static Hooks::Hook s_SummonAnimalCompanionHook;
+
+static void SummonAnimalCompanionHook(CNWSCreature* pCreature);
+
+void AnimalCompanionLevelScaling() __attribute__((constructor));
+void AnimalCompanionLevelScaling()
+{
+    LOG_INFO("Animal companion level scaling enabled (requires Druid+Ranger >= half total level)");
+
+    s_SummonAnimalCompanionHook = Hooks::HookFunction(
+        &CNWSCreature::SummonAnimalCompanion,
+        &SummonAnimalCompanionHook, Hooks::Order::Early);
+}
+
+static void SummonAnimalCompanionHook(CNWSCreature* pCreature)
+{
+    auto* pStats = pCreature->m_pStats;
+    if (!pStats)
+    {
+        s_SummonAnimalCompanionHook->CallOriginal<void>(pCreature);
+        return;
+    }
+
+    // Calculate total level, druid+ranger levels, and other class levels
+    int32_t nTotalLevel = 0;
+    int32_t nDruidRangerLevels = 0;
+    int32_t nOtherLevels = 0;
+    int nDruidIdx = -1;
+    int nRangerIdx = -1;
+
+    for (int i = 0; i < pStats->m_nNumMultiClasses; i++)
+    {
+        auto nClassId = pStats->m_ClassInfo[i].m_nClass;
+        auto nClassLevel = pStats->m_ClassInfo[i].m_nLevel;
+        
+        nTotalLevel += nClassLevel;
+
+        if (nClassId == Constants::ClassType::Druid)
+        {
+            nDruidRangerLevels += nClassLevel;
+            if (nDruidIdx < 0)
+                nDruidIdx = i;
+        }
+        else if (nClassId == Constants::ClassType::Ranger)
+        {
+            nDruidRangerLevels += nClassLevel;
+            if (nRangerIdx < 0)
+                nRangerIdx = i;
+        }
+        else
+        {
+            nOtherLevels += nClassLevel;
+        }
+    }
+
+    // Check if Druid + Ranger is at least half the total level
+    // and there are other levels to add
+    if (nDruidRangerLevels >= (nTotalLevel / 2) && nOtherLevels > 0)
+    {
+        // Find the target class to boost (prefer Druid over Ranger)
+        int nTargetIdx = (nDruidIdx >= 0) ? nDruidIdx : nRangerIdx;
+
+        if (nTargetIdx >= 0)
+        {
+            uint8_t nOriginalLevel = pStats->m_ClassInfo[nTargetIdx].m_nLevel;
+            uint8_t nBoostedLevel = static_cast<uint8_t>(std::min(255, static_cast<int>(nOriginalLevel) + nOtherLevels));
+
+            LOG_INFO("Animal companion level scaling: Boosting class %d from level %d to %d (bonus: %d, Druid+Ranger: %d, Total: %d)",
+                     pStats->m_ClassInfo[nTargetIdx].m_nClass, nOriginalLevel, nBoostedLevel, nOtherLevels, nDruidRangerLevels, nTotalLevel);
+
+            pStats->m_ClassInfo[nTargetIdx].m_nLevel = nBoostedLevel;
+            s_SummonAnimalCompanionHook->CallOriginal<void>(pCreature);
+            pStats->m_ClassInfo[nTargetIdx].m_nLevel = nOriginalLevel;
+            return;
+        }
+    }
+
+    s_SummonAnimalCompanionHook->CallOriginal<void>(pCreature);
 }
 
 }
