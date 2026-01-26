@@ -1520,19 +1520,37 @@ void CustomHolyAvengerProperty()
             pEffect->SetInteger(0, nSpellResistance);
             pCreature->ApplyEffect(pEffect, bLoadingGame, false);
 
-            // 3. Radiant Damage Bonus: +1d6 vs Evil creatures
-            auto *pDamageBonusProperty = new CNWItemProperty();
-            pDamageBonusProperty->m_nPropertyName = Constants::ItemProperty::DamageBonusVSAlignmentGroup;
-            pDamageBonusProperty->m_nSubType = Constants::Alignment::Evil; // Evil alignment
-            pDamageBonusProperty->m_nCostTable = 4; // Points to IPRP_DAMAGECOST table
-            pDamageBonusProperty->m_nCostTableValue = 7; // 1d6 damage
-            pDamageBonusProperty->m_nParam1 = -1; // Damage type table index
-            pDamageBonusProperty->m_nParam1Value = 21; // Radiant damage group from damagetypes.2da
-            pDamageBonusProperty->m_nChanceOfAppearing = 100;
-            pDamageBonusProperty->m_bUseable = true;
-            pDamageBonusProperty->m_nUsesPerDay = -1; // Unlimited uses
+            // 3. Alignment-based Damage Bonus
+            // Blackguard (10+ levels): +1d6 Vile
+            // Otherwise (Paladin): +1d6 Radiant vs Evil creatures
+            auto nBlackguardLevels = pStats->GetNumLevelsOfClass(Constants::ClassType::Blackguard);
+            bool bIsUnholyAvenger = (nBlackguardLevels >= 10);
 
-            // Apply the radiant damage bonus
+            auto *pDamageBonusProperty = new CNWItemProperty();
+            if (bIsUnholyAvenger)
+            {
+                pDamageBonusProperty->m_nPropertyName = Constants::ItemProperty::DamageBonus;
+                pDamageBonusProperty->m_nSubType = 23; // Vile (23) from iprp_damagetypes.2da
+                pDamageBonusProperty->m_nCostTable = 4; // Points to IPRP_DAMAGECOST table
+                pDamageBonusProperty->m_nCostTableValue = 7; // 1d6 damage
+                pDamageBonusProperty->m_nChanceOfAppearing = 100;
+                pDamageBonusProperty->m_bUseable = true;
+                pDamageBonusProperty->m_nUsesPerDay = -1; // Unlimited uses
+            }
+            else
+            {
+                pDamageBonusProperty->m_nPropertyName = Constants::ItemProperty::DamageBonusVSAlignmentGroup;
+                pDamageBonusProperty->m_nSubType = Constants::Alignment::Evil;
+                pDamageBonusProperty->m_nCostTable = 4; // Points to IPRP_DAMAGECOST table
+                pDamageBonusProperty->m_nCostTableValue = 7; // 1d6 damage
+                pDamageBonusProperty->m_nParam1 = -1; // Damage type table index
+                pDamageBonusProperty->m_nParam1Value = 21; // Radiant (21) from iprp_damagetypes.2da
+                pDamageBonusProperty->m_nChanceOfAppearing = 100;
+                pDamageBonusProperty->m_bUseable = true;
+                pDamageBonusProperty->m_nUsesPerDay = -1; // Unlimited uses     
+            }
+
+            // Apply the damage bonus
             pThis->ApplyDamageBonus(pItem, pDamageBonusProperty, pCreature, nInventorySlot, bLoadingGame);
             delete pDamageBonusProperty;
 
