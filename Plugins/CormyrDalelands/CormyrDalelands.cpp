@@ -1493,6 +1493,11 @@ void CustomHolyAvengerProperty()
             auto *pStats = pCreature->m_pStats;
             auto nCharacterLevel = pStats->GetLevel(false);
             auto nItemID = pItem->m_idSelf;
+            auto nBlackguardLevels = pStats->GetNumLevelsOfClass(Constants::ClassType::Blackguard);
+            bool bIsUnholyAvenger = (nBlackguardLevels >= 10);
+            
+            if (!bIsUnholyAvenger && pStats->GetNumLevelsOfClass(Constants::ClassType::Paladin) < 1)
+                return 0; // Neither Blackguard of sufficient level nor Paladin - do not apply
 
             // 1. Level-based Enhancement Bonus
             int32_t nEnhancementBonus = (nCharacterLevel >= 25) ? 6 : 5;
@@ -1523,9 +1528,6 @@ void CustomHolyAvengerProperty()
             // 3. Alignment-based Damage Bonus
             // Blackguard (10+ levels): +1d6 Vile
             // Otherwise (Paladin): +1d6 Radiant vs Evil creatures
-            auto nBlackguardLevels = pStats->GetNumLevelsOfClass(Constants::ClassType::Blackguard);
-            bool bIsUnholyAvenger = (nBlackguardLevels >= 10);
-
             auto *pDamageBonusProperty = new CNWItemProperty();
             if (bIsUnholyAvenger)
             {
