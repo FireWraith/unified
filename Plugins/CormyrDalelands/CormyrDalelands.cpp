@@ -1494,12 +1494,15 @@ void CustomHolyAvengerProperty()
             auto nCharacterLevel = pStats->GetLevel(false);
             auto nItemID = pItem->m_idSelf;
             auto nBlackguardLevels = pStats->GetNumLevelsOfClass(Constants::ClassType::Blackguard);
+            auto nPaladinLevels = pStats->GetNumLevelsOfClass(Constants::ClassType::Paladin);
             bool bIsUnholyAvenger = (nBlackguardLevels >= 10);
+            bool bIsHolyAvenger = (nPaladinLevels >= 1);
             
-            if (!bIsUnholyAvenger && pStats->GetNumLevelsOfClass(Constants::ClassType::Paladin) < 1)
-                return 0; // Neither Blackguard of sufficient level nor Paladin - do not apply
+            // Enhancement bonus requires any level of Blackguard or Paladin
+            if (nBlackguardLevels < 1 && nPaladinLevels < 1)
+                return 0; // Neither Blackguard nor Paladin - do not apply
 
-            // 1. Level-based Enhancement Bonus
+            // 1. Level-based Enhancement Bonus (any Blackguard or Paladin level)
             int32_t nEnhancementBonus = (nCharacterLevel >= 25) ? 6 : 5;
             auto *pEnhancementProperty = new CNWItemProperty();
             pEnhancementProperty->m_nPropertyName = Constants::ItemProperty::EnhancementBonus;
@@ -1516,45 +1519,51 @@ void CustomHolyAvengerProperty()
             pThis->ApplyEnhancementBonus(pItem, pEnhancementProperty, pCreature, nInventorySlot, bLoadingGame);
             delete pEnhancementProperty;
 
-            // 2. Scaling Spell Resistance
-            auto *pEffect = new CGameEffect(true);
-            pEffect->m_nType = Constants::EffectTrueType::SpellResistanceIncrease;
-            pEffect->SetDurationType(Constants::EffectDurationType::Equipped);
-            pEffect->SetCreator(nItemID);
-            int32_t nSpellResistance = 8 + nCharacterLevel;
-            pEffect->SetInteger(0, nSpellResistance);
-            pCreature->ApplyEffect(pEffect, bLoadingGame, false);
-
-            // 3. Alignment-based Damage Bonus
-            // Blackguard (10+ levels): +1d6 Vile
-            // Otherwise (Paladin): +1d6 Radiant vs Evil creatures
-            auto *pDamageBonusProperty = new CNWItemProperty();
-            if (bIsUnholyAvenger)
+            // 2. Scaling Spell Resistance (10+ Blackguard OR any Paladin level)
+            if (bIsUnholyAvenger || bIsHolyAvenger)
             {
-                pDamageBonusProperty->m_nPropertyName = Constants::ItemProperty::DamageBonus;
-                pDamageBonusProperty->m_nSubType = 23; // Vile (23) from iprp_damagetypes.2da
-                pDamageBonusProperty->m_nCostTable = 4; // Points to IPRP_DAMAGECOST table
-                pDamageBonusProperty->m_nCostTableValue = 7; // 1d6 damage
-                pDamageBonusProperty->m_nChanceOfAppearing = 100;
-                pDamageBonusProperty->m_bUseable = true;
-                pDamageBonusProperty->m_nUsesPerDay = -1; // Unlimited uses
-            }
-            else
-            {
-                pDamageBonusProperty->m_nPropertyName = Constants::ItemProperty::DamageBonusVSAlignmentGroup;
-                pDamageBonusProperty->m_nSubType = Constants::Alignment::Evil;
-                pDamageBonusProperty->m_nCostTable = 4; // Points to IPRP_DAMAGECOST table
-                pDamageBonusProperty->m_nCostTableValue = 7; // 1d6 damage
-                pDamageBonusProperty->m_nParam1 = -1; // Damage type table index
-                pDamageBonusProperty->m_nParam1Value = 21; // Radiant (21) from iprp_damagetypes.2da
-                pDamageBonusProperty->m_nChanceOfAppearing = 100;
-                pDamageBonusProperty->m_bUseable = true;
-                pDamageBonusProperty->m_nUsesPerDay = -1; // Unlimited uses     
+                auto *pEffect = new CGameEffect(true);
+                pEffect->m_nType = Constants::EffectTrueType::SpellResistanceIncrease;
+                pEffect->SetDurationType(Constants::EffectDurationType::Equipped);
+                pEffect->SetCreator(nItemID);
+                int32_t nSpellResistance = 8 + nCharacterLevel;
+                pEffect->SetInteger(0, nSpellResistance);
+                pCreature->ApplyEffect(pEffect, bLoadingGame, false);
             }
 
-            // Apply the damage bonus
-            pThis->ApplyDamageBonus(pItem, pDamageBonusProperty, pCreature, nInventorySlot, bLoadingGame);
-            delete pDamageBonusProperty;
+            // 3. Damage Bonus (10+ Blackguard OR any Paladin level)
+            // Blackguard (10+ levels): +1d6 Vile vs all targets
+            // Paladin: +1d6 Radiant vs Evil creatures
+            if (bIsUnholyAvenger || bIsHolyAvenger)
+            {
+                auto *pDamageBonusProperty = new CNWItemProperty();
+                if (bIsUnholyAvenger)
+                {
+                    pDamageBonusProperty->m_nPropertyName = Constants::ItemProperty::DamageBonus;
+                    pDamageBonusProperty->m_nSubType = 23; // Vile (23) from iprp_damagetypes.2da
+                    pDamageBonusProperty->m_nCostTable = 4; // Points to IPRP_DAMAGECOST table
+                    pDamageBonusProperty->m_nCostTableValue = 7; // 1d6 damage
+                    pDamageBonusProperty->m_nChanceOfAppearing = 100;
+                    pDamageBonusProperty->m_bUseable = true;
+                    pDamageBonusProperty->m_nUsesPerDay = -1; // Unlimited uses
+                }
+                else
+                {
+                    pDamageBonusProperty->m_nPropertyName = Constants::ItemProperty::DamageBonusVSAlignmentGroup;
+                    pDamageBonusProperty->m_nSubType = Constants::Alignment::Evil;
+                    pDamageBonusProperty->m_nCostTable = 4; // Points to IPRP_DAMAGECOST table
+                    pDamageBonusProperty->m_nCostTableValue = 7; // 1d6 damage
+                    pDamageBonusProperty->m_nParam1 = -1; // Damage type table index
+                    pDamageBonusProperty->m_nParam1Value = 21; // Radiant (21) from iprp_damagetypes.2da
+                    pDamageBonusProperty->m_nChanceOfAppearing = 100;
+                    pDamageBonusProperty->m_bUseable = true;
+                    pDamageBonusProperty->m_nUsesPerDay = -1; // Unlimited uses     
+                }
+
+                // Apply the damage bonus
+                pThis->ApplyDamageBonus(pItem, pDamageBonusProperty, pCreature, nInventorySlot, bLoadingGame);
+                delete pDamageBonusProperty;
+            }
 
             return 1; // Success - don't call original
         }, Hooks::Order::Final);
