@@ -25,6 +25,7 @@
 #include "API/CNWItemProperty.hpp"
 #include "API/CNWRules.hpp"
 #include "API/CNWVisibilityNode.hpp"
+#include "API/CNetLayer.hpp"
 #include "API/CServerExoApp.hpp"
 #include "API/CServerExoAppInternal.hpp"
 #include "API/CVirtualMachine.hpp"
@@ -35,6 +36,7 @@
 
 #include <set>
 #include <map>
+#include <dlfcn.h>
 
 using namespace NWNXLib;
 using namespace NWNXLib::API;
@@ -1860,6 +1862,102 @@ static void SummonAnimalCompanionHook(CNWSCreature* pCreature)
     }
 
     s_SummonAnimalCompanionHook->CallOriginal<void>(pCreature);
+}
+
+// ============================================================================
+// Network Decompression Stall Prevention
+// ============================================================================
+// Hooks CNetLayerInternal::UncompressMessage to rate-limit failed decompression
+// attempts. A corrupted network packet can contain many sub-messages that each
+// fail decompression, and each failure triggers expensive ExoLog::Emit calls
+// (string formatting + I/O). This can block the main loop for minutes, causing
+// Watchcat to kill the server.
+//
+// The fix: after MAX_DECOMPRESS_FAILURES_PER_TICK consecutive failures for a
+// given player, skip remaining calls and return 0 (failure) immediately,
+// avoiding the expensive logging in the original function.
+// ============================================================================
+
+static constexpr int MAX_DECOMPRESS_FAILURES_PER_TICK = 10;
+static uint32_t s_DecompressFailPlayerId = 0;
+static int s_DecompressFailCount = 0;
+
+using UncompressMessageFunc = int32_t (*)(void* /*CNetLayerInternal*/, uint32_t /*playerId*/, uint8_t* /*data*/, uint32_t /*size*/);
+static Hooks::Hook s_UncompressMessageHook;
+
+static int32_t UncompressMessageHookFunc(void* pThis, uint32_t nPlayerId, uint8_t* pData, uint32_t dwSize)
+{
+    // Different player - reset the counter. This scopes suppression to a single
+    // burst of bad sub-messages within one frame for one player.
+    if (nPlayerId != s_DecompressFailPlayerId)
+    {
+        s_DecompressFailPlayerId = nPlayerId;
+        s_DecompressFailCount = 0;
+    }
+
+    // If we've already hit the failure threshold for this player, skip the
+    // call entirely. This prevents the logging storm that causes the stall.
+    if (s_DecompressFailCount >= MAX_DECOMPRESS_FAILURES_PER_TICK)
+    {
+        return 0;
+    }
+
+    int32_t result = s_UncompressMessageHook->CallOriginal<int32_t>(pThis, nPlayerId, pData, dwSize);
+
+    if (result == 0)
+    {
+        s_DecompressFailCount++;
+
+        if (s_DecompressFailCount == MAX_DECOMPRESS_FAILURES_PER_TICK)
+        {
+            LOG_ERROR("Network decompression stall prevention: %d consecutive failures for player %u - disconnecting",
+                        s_DecompressFailCount, nPlayerId);
+
+            // Queue the disconnect on the main thread since we're in the network layer.
+            // nStrRef 5838 = generic "has been disconnected" message.
+            uint32_t playerId = nPlayerId;
+            Tasks::QueueOnMainThread([playerId]()
+            {
+                auto* pNetLayer = Globals::AppManager()->m_pServerExoApp->GetNetLayer();
+                if (pNetLayer)
+                {
+                    pNetLayer->DisconnectPlayer(playerId, 5838, false,
+                        "Disconnected: corrupt network data detected. Please relog.");
+                }
+            });
+        }
+    }
+    else
+    {
+        // Success - reset the counter
+        s_DecompressFailCount = 0;
+    }
+
+    return result;
+}
+
+void NetworkDecompressionStallPrevention() __attribute__((constructor));
+void NetworkDecompressionStallPrevention()
+{
+    if (!Config::Get<bool>("ENABLE_NETWORK_STALL_PREVENTION", true))
+        return;
+
+    // CNetLayerInternal::UncompressMessage is not in the NWNX typed API bindings,
+    // so we resolve it by its mangled symbol name.
+    void* pUncompressMessage = dlsym(RTLD_DEFAULT, "_ZN17CNetLayerInternal17UncompressMessageEjPhj");
+    if (!pUncompressMessage)
+    {
+        LOG_ERROR("NetworkDecompressionStallPrevention: Failed to find CNetLayerInternal::UncompressMessage symbol");
+        return;
+    }
+
+    LOG_INFO("Network decompression stall prevention enabled (max %d consecutive failures before suppression)",
+             MAX_DECOMPRESS_FAILURES_PER_TICK);
+
+    s_UncompressMessageHook = Hooks::HookFunction(
+        pUncompressMessage,
+        (void*)&UncompressMessageHookFunc,
+        Hooks::Order::Earliest);
 }
 
 }
