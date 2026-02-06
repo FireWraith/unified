@@ -12,6 +12,9 @@
 #include "API/CNWSEffectListHandler.hpp"
 #include "API/CNWSPlayer.hpp"
 #include "API/CNWSPlayerTURD.hpp"
+#include "API/CNWSCombatRound.hpp"
+#include "API/CNWSCombatAttackData.hpp"
+#include "API/CNWCCMessageData.hpp"
 #include "API/CTwoDimArrays.hpp"
 #include "API/Constants.hpp"
 #include "API/Constants/Effect.hpp"
@@ -44,6 +47,7 @@ static Hooks::Hook s_RemoveFeatHook;
 static Hooks::Hook s_OnApplyBonusFeatHook;
 static Hooks::Hook s_OnRemoveBonusFeatHook;
 static Hooks::Hook s_EatTURDHook;
+static Hooks::Hook s_DoDamageResistanceHook;
 
 Feat::Feat(Services::ProxyServiceList* services)
     : Plugin(services)
@@ -74,6 +78,9 @@ Feat::Feat(Services::ProxyServiceList* services)
     s_OnRemoveBonusFeatHook = Hooks::HookFunction(&CNWSEffectListHandler::OnRemoveBonusFeat,
                                                            &OnRemoveBonusFeatHook, Hooks::Order::Early);
     s_EatTURDHook = Hooks::HookFunction(&CNWSPlayer::EatTURD, &EatTURDHook, Hooks::Order::Early);
+    s_DoDamageResistanceHook = Hooks::HookFunction(
+        Functions::_ZN10CNWSObject18DoDamageResistanceEP12CNWSCreatureijiiii,
+        &DoDamageResistanceHook, Hooks::Order::Early);
 }
 
 Feat::~Feat()
@@ -220,16 +227,7 @@ void Feat::ApplyFeatEffects(CNWSCreature *pCreature, uint16_t nFeat)
         }
     }
 
-    // DMGRESIST
-    for (auto &dmgResistMod : g_plugin->m_FeatDmgResist[nFeat])
-    {
-        auto modDmgResistType = dmgResistMod.first;
-        auto modDmgResistValue = dmgResistMod.second;
-        if (modDmgResistValue != 0)
-        {
-            g_plugin->DoEffect(pCreature, nFeat, DamageResistance, modDmgResistType, modDmgResistValue);
-        }
-    }
+    // DMGRESIST — handled directly in DoDamageResistanceHook, no effect needed
 
     // HASTE
     if (g_plugin->m_FeatHaste.find(nFeat) != g_plugin->m_FeatHaste.end())
@@ -659,6 +657,84 @@ void Feat::EatTURDHook(CNWSPlayer *pPlayer, CNWSPlayerTURD *pTURD)
     }
 
     s_EatTURDHook->CallOriginal<void>(pPlayer, pTURD);
+}
+
+int32_t Feat::DoDamageResistanceHook(CNWSObject *thisPtr, CNWSCreature *pDamager,
+    int32_t nDamage, uint32_t nFlags, int32_t bSimulation, int32_t bCombatDamage,
+    int32_t bBaseWeaponDamage, int32_t bRangedAttack)
+{
+    // Call original — engine applies hardcoded feat resistance (Phase 1)
+    // and best spell/item DamageResistance effect (Phase 2)
+    int32_t remainingDamage = s_DoDamageResistanceHook->CallOriginal<int32_t>(
+        thisPtr, pDamager, nDamage, nFlags, bSimulation, bCombatDamage,
+        bBaseWeaponDamage, bRangedAttack);
+
+    if (remainingDamage <= 0)
+        return remainingDamage;
+
+    auto *pCreature = Utils::AsNWSCreature(thisPtr);
+    if (!pCreature)
+        return remainingDamage;
+
+    // Sum all matching NWNX feat-based damage resistances for this damage flag
+    int32_t totalFeatResist = 0;
+    for (int32_t j = 0; j < pCreature->m_pStats->m_lstFeats.num; j++)
+    {
+        auto nFeat = pCreature->m_pStats->m_lstFeats.element[j];
+        auto it = g_plugin->m_FeatDmgResist.find(nFeat);
+        if (it == g_plugin->m_FeatDmgResist.end())
+            continue;
+
+        for (auto &dmgResistMod : it->second)
+        {
+            // Engine uses bitwise AND for damage flag matching
+            if ((dmgResistMod.first & nFlags) != 0 && dmgResistMod.second > 0)
+            {
+                totalFeatResist += dmgResistMod.second;
+            }
+        }
+    }
+
+    if (totalFeatResist <= 0)
+        return remainingDamage;
+
+    int32_t absorbed = std::min(remainingDamage, totalFeatResist);
+
+    // Send feedback mirroring the engine's own pattern
+    if (!bSimulation)
+    {
+        auto *pFeedback = new CNWCCMessageData;
+        pFeedback->SetObjectID(0, thisPtr->m_idSelf);
+        pFeedback->SetInteger(0, 0x3f); // COMBAT_DAMAGE_RESISTANCE
+        pFeedback->SetInteger(1, absorbed);
+
+        if (bCombatDamage == 1 && pDamager != nullptr)
+        {
+            // During combat, attach to the attacker's current attack pending feedback
+            auto *pAttackData = pDamager->m_pcCombatRound->GetAttack(
+                pDamager->m_pcCombatRound->m_nCurrentAttack);
+            pAttackData->m_alstPendingFeedback.Add(pFeedback);
+        }
+        else
+        {
+            // Non-combat damage: send directly to both parties
+            auto *pFeedbackCopy = new CNWCCMessageData;
+            pFeedback->CopyTo(pFeedbackCopy);
+
+            pCreature->SendFeedbackMessage(0x3f, pFeedback, nullptr);
+
+            if (pDamager != nullptr)
+                pDamager->SendFeedbackMessage(0x3f, pFeedbackCopy, nullptr);
+            else
+                delete pFeedbackCopy;
+        }
+    }
+
+    remainingDamage -= absorbed;
+    if (remainingDamage < 0)
+        remainingDamage = 0;
+
+    return remainingDamage;
 }
 
 bool Feat::DoFeatModifier(int32_t featId, FeatModifier featMod, int32_t param1, int32_t param2, int32_t param3, int32_t param4)
