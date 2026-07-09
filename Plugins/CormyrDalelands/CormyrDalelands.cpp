@@ -1008,7 +1008,7 @@ NWNX_EXPORT ArgumentStack SetClassProgressesBardSongUses(ArgumentStack&& args)
                     if (s_LingeringSongExtraMusic && (pThis->HasFeat(Constants::Feat::LingeringSong) || pThis->HasFeat(Constants::Feat::ExtraMusic)))
                     {
                         if (s_BardSongExtraMusicByCharismaModifier)
-                            nNumUses += std::clamp<uint8_t>(pThis->m_nCharismaModifier, 0, nBardSongClassLevels);
+                            nNumUses += std::clamp<int>(pThis->m_nCharismaModifier, 0, nBardSongClassLevels);
                         else
                             nNumUses += Globals::Rules()->GetRulesetIntEntry(CRULES_HASHEDSTR("EXTRA_MUSIC_BONUS_USES"), 4);
                     }
@@ -1041,7 +1041,7 @@ NWNX_EXPORT ArgumentStack SetClassProgressesBardSongUses(ArgumentStack&& args)
                 if (!pThis->HasFeat(nFeat))
                     return 0;
 
-                auto nNumUses = pThis->GetFeatTotalUses(nFeat);
+                int nNumUses = pThis->GetFeatTotalUses(nFeat);
 
                 for (int32_t i = 0; i < pThis->m_lstFeatUses.num; i++)
                 {
@@ -1053,7 +1053,7 @@ NWNX_EXPORT ArgumentStack SetClassProgressesBardSongUses(ArgumentStack&& args)
                     }
                 }
 
-                return std::clamp<uint8_t>(nNumUses, 0, 100);
+                return static_cast<uint8_t>(std::clamp(nNumUses, 0, 100));
             }
 
             return s_GetFeatRemainingUsesHook->CallOriginal<uint8_t>(pThis, nFeat);
