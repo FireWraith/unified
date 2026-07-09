@@ -788,6 +788,7 @@ void RangedWeaponsUseOnHitEffectItemProperties()
                                     pWeapon->m_nBaseItem = Constants::BaseItem::Shortsword;
                                     s_ResolveOnHitEffectHook->CallOriginal<void>(pCreature, pTarget, bOffHandAttack, bCritical);
                                     pWeapon->m_nBaseItem = nBaseItem;
+                                    return;
                                 }
                             }
                         }
@@ -865,6 +866,7 @@ void RangedWeaponsUseOnHitCastSpellItemProperties()
                                     pWeapon->m_nBaseItem = Constants::BaseItem::Shortsword;
                                     s_ResolveItemCastSpellHook->CallOriginal<void>(pCreature, pTarget);
                                     pWeapon->m_nBaseItem = nBaseItem;
+                                    return;
                                 }
                             }
                         }
