@@ -895,17 +895,17 @@ void FixDefensiveStanceTotalUses()
                     if (!pThis->HasFeat(nFeat))
                         return 0;
                     
-                    if (pThis->m_lstFeatUses.num < 1)
-                        return 100;
-
-                    auto *pFeatUses = pThis->m_lstFeatUses.element[0];
-                    for (int32_t i = 0; pFeatUses->m_nFeat != nFeat; ++i)
+                    bool bFeatUsesFound = false;
+                    for (int32_t i = 0; i < pThis->m_lstFeatUses.num; i++)
                     {
-                        if (i > pThis->m_lstFeatUses.num)
-                            return 100;
-
-                        pFeatUses = pThis->m_lstFeatUses.element[i];
+                        if (pThis->m_lstFeatUses.element[i]->m_nFeat == nFeat)
+                        {
+                            bFeatUsesFound = true;
+                            break;
+                        }
                     }
+                    if (!bFeatUsesFound)
+                        return 100;
 
                     auto nNumUses = pFeat->m_nUsesPerDay;
                     if (nNumUses > 100)
@@ -986,17 +986,17 @@ NWNX_EXPORT ArgumentStack SetClassProgressesBardSongUses(ArgumentStack&& args)
                     if (!pThis->HasFeat(nFeat))
                         return 0;
                     
-                    if (pThis->m_lstFeatUses.num < 1)
-                        return 100;
-
-                    auto *pFeatUses = pThis->m_lstFeatUses.element[0];
-                    for (int32_t i = 0; pFeatUses->m_nFeat != nFeat; ++i)
+                    bool bFeatUsesFound = false;
+                    for (int32_t i = 0; i < pThis->m_lstFeatUses.num; i++)
                     {
-                        if (i > pThis->m_lstFeatUses.num)
-                            return 100;
-
-                        pFeatUses = pThis->m_lstFeatUses.element[i];
+                        if (pThis->m_lstFeatUses.element[i]->m_nFeat == nFeat)
+                        {
+                            bFeatUsesFound = true;
+                            break;
+                        }
                     }
+                    if (!bFeatUsesFound)
+                        return 100;
 
                     auto nBardSongClassLevels = 0;
                     for (const auto &it : m_BardSongUsesProgressingClasses)
