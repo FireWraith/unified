@@ -29,7 +29,6 @@
 #include "API/CServerExoApp.hpp"
 #include "API/CServerExoAppInternal.hpp"
 #include "API/CVirtualMachine.hpp"
-#include "API/CTlkTable.hpp"
 #include "API/CWorldTimer.hpp"
 #include "API/CTwoDimArrays.hpp"
 #include "API/C2DA.hpp"
@@ -412,7 +411,7 @@ NWNX_EXPORT ArgumentStack SetFeatIsSneakAttackFeat(ArgumentStack&& args)
         +[](CNWSCreatureStats *pThis, CNWSObject *pTarget, BOOL bOffHand, BOOL bCritical, BOOL bSneakAttack, BOOL bDeathAttack, BOOL bForceMax = false) -> int32_t
         {
             if (!bSneakAttack)
-                return s_GetDamageRollHook->CallOriginal<int32_t>(pThis, pTarget, bOffHand, bCritical, bSneakAttack, bDeathAttack, bForceMax);;
+                return s_GetDamageRollHook->CallOriginal<int32_t>(pThis, pTarget, bOffHand, bCritical, bSneakAttack, bDeathAttack, bForceMax);
 
             s_SneakAttackDamageRollCreatureStats = pThis;
             auto retval = s_GetDamageRollHook->CallOriginal<int32_t>(pThis, pTarget, bOffHand, bCritical, bSneakAttack, bDeathAttack, bForceMax);
