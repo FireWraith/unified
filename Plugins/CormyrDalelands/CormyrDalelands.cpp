@@ -1236,7 +1236,7 @@ void ExtendEffectACBonusTypes()
                         if ((pEffect->GetInteger(2) != Constants::RacialType::All && pEffect->GetInteger(2) != pCreature->m_pStats->m_nRace) ||
                             (pEffect->GetInteger(3) != 0 && pEffect->GetInteger(3) != pCreature->m_pStats->GetSimpleAlignmentLawChaos()) ||
                             (pEffect->GetInteger(4) != 0 && pEffect->GetInteger(4) != pCreature->m_pStats->GetSimpleAlignmentGoodEvil()) ||
-                            (pEffect->GetInteger(5) != 4103 && (pEffect->GetInteger(5) & pCreature->GetDamageFlags())) != 0)
+                            (pEffect->GetInteger(5) != 4103 && (pEffect->GetInteger(5) & pCreature->GetDamageFlags()) == 0))
                                 continue;
 
                         if (pEffect->m_nType == Constants::EffectTrueType::ACIncrease)
