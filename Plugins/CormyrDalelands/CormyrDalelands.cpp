@@ -632,7 +632,7 @@ NWNX_EXPORT ArgumentStack SetNaturalBaseACModifierFeat(ArgumentStack&& args)
             if (bVsTouchAttack)
                 return retval;
 
-            std::set<std::uint8_t> calculatedFeats;
+            std::set<std::uint16_t> calculatedFeats;
             
             for (const auto &it : m_ACNaturalBaseModifierFeats)
             {
@@ -649,7 +649,7 @@ NWNX_EXPORT ArgumentStack SetNaturalBaseACModifierFeat(ArgumentStack&& args)
                     }
                     else
                     {
-                        calculatedFeats.insert(it.second);
+                        calculatedFeats.insert(it.first);
                         retval += it.second;
                     }
                 }
