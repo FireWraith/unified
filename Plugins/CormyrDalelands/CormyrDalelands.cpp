@@ -686,7 +686,7 @@ NWNX_EXPORT ArgumentStack SetClassProgressesSmiteEvil(ArgumentStack&& args)
             CNWSCombatAttackData *pAttackData = pThis->m_pcCombatRound->GetAttack(pThis->m_pcCombatRound->m_nCurrentAttack);
 
             // Early exit if not a smite evil attack
-            if (!pAttackData || pAttackData->m_nAttackType != Constants::Feat::SmiteEvil || !pTarget || pTarget->m_pStats->m_nAlignmentGoodEvil >= 30)
+            if (!pAttackData || pAttackData->m_nAttackType != Constants::Feat::SmiteEvil || !pTarget || pTarget->m_pStats->m_nAlignmentGoodEvil > 30)
                 return s_GetDamageRollHook->CallOriginal<int32_t>(thisPtr, pTarget);
 
             // Calculate Epic Great Smiting rank - pre-hashed for performance
