@@ -35,6 +35,7 @@
 
 #include <set>
 #include <map>
+#include <unordered_set>
 #include <dlfcn.h>
 
 using namespace NWNXLib;
@@ -373,7 +374,7 @@ NWNX_EXPORT ArgumentStack SetClassIsSneakAttackUncannyDodgeClass(ArgumentStack&&
         {
             ResolveSneakOrDeathAttack(pThis, pTarget, false);
         }, Hooks::Order::Final);
-    
+
     static Hooks::Hook s_ResolveDeathAttackHook =
         Hooks::HookFunction(&CNWSCreature::ResolveDeathAttack,
         +[](CNWSCreature *pThis, CNWSCreature *pTarget) -> void
@@ -429,7 +430,7 @@ NWNX_EXPORT ArgumentStack SetFeatIsSneakAttackFeat(ArgumentStack&& args)
                 s_OverrideSneakAttackDamageRoll = true;
                 return false;
             }
-            
+
             return s_HasFeatHook->CallOriginal<bool>(pThis, nFeat);
         }, Hooks::Order::Late);
 
@@ -454,7 +455,7 @@ NWNX_EXPORT ArgumentStack SetFeatIsSneakAttackFeat(ArgumentStack&& args)
                 s_InSneakAttackRollDice = false;
                 s_OverrideSneakAttackDamageRoll = false;
             }
-                
+
             return s_RollDiceHook->CallOriginal<uint16_t>(pThis, nNumberOfDice, nSides);
         }, Hooks::Order::Late);
 
@@ -489,7 +490,7 @@ NWNX_EXPORT ArgumentStack SetFeatIsDeathAttackFeat(ArgumentStack&& args)
         {
             if (!bDeathAttack)
                 return s_GetDamageRollHook->CallOriginal<int32_t>(pThis, pTarget, bOffHand, bCritical, bSneakAttack, bDeathAttack, bForceMax);
- 
+
             s_DeathAttackDamageRollCreatureStats = pThis;
             auto retval = s_GetDamageRollHook->CallOriginal<int32_t>(pThis, pTarget, bOffHand, bCritical, bSneakAttack, bDeathAttack, bForceMax);
             s_DeathAttackDamageRollCreatureStats = nullptr;
@@ -506,7 +507,7 @@ NWNX_EXPORT ArgumentStack SetFeatIsDeathAttackFeat(ArgumentStack&& args)
                 s_OverrideDeathAttackDamageRoll = true;
                 return false;
             }
-            
+
             return s_HasFeatHook->CallOriginal<bool>(pThis, nFeat);
         }, Hooks::Order::Late);
 
@@ -531,7 +532,7 @@ NWNX_EXPORT ArgumentStack SetFeatIsDeathAttackFeat(ArgumentStack&& args)
                 s_InDeathAttackRollDice = false;
                 s_OverrideDeathAttackDamageRoll = false;
             }
-                
+
             return s_RollDiceHook->CallOriginal<uint16_t>(pThis, nNumberOfDice, nSides);
         }, Hooks::Order::Late);
 
@@ -563,7 +564,7 @@ NWNX_EXPORT ArgumentStack SetNaturalBaseACModifierFeat(ArgumentStack&& args)
                 return retval;
 
             std::set<std::uint16_t> calculatedFeats;
-            
+
             for (const auto &it : m_ACNaturalBaseModifierFeats)
             {
                 if (pThis->HasFeat(it.first))
@@ -602,7 +603,7 @@ NWNX_EXPORT ArgumentStack SetClassProgressesSmiteEvil(ArgumentStack&& args)
 
     //Add the class to the list of Smite Evil classes
     m_SmiteEvilProgressingClasses.insert(nClassId);
-    LOG_INFO("Class %s [%d] set as Smite Evil progressing class", pClass->GetNameText(), nClassId); 
+    LOG_INFO("Class %s [%d] set as Smite Evil progressing class", pClass->GetNameText(), nClassId);
 
     static Hooks::Hook s_GetDamageRollHook =
         Hooks::HookFunction(&CNWSCreatureStats::ResolveSpecialAttackDamageBonus,
@@ -622,16 +623,16 @@ NWNX_EXPORT ArgumentStack SetClassProgressesSmiteEvil(ArgumentStack&& args)
             // Calculate Epic Great Smiting rank - pre-hashed for performance
             int nSmiteRank = 1;
             auto nBaseFeat = Constants::Feat::EpicGreatSmiting1 - 1;
-            
+
             static const uint64_t epicSmitingHashes[] = {
                 0, // index 0 unused
-                CRULES_HASHEDSTR("EPIC_GREAT_SMITING_1"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_2"), 
+                CRULES_HASHEDSTR("EPIC_GREAT_SMITING_1"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_2"),
                 CRULES_HASHEDSTR("EPIC_GREAT_SMITING_3"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_4"),
-                CRULES_HASHEDSTR("EPIC_GREAT_SMITING_5"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_6"), 
+                CRULES_HASHEDSTR("EPIC_GREAT_SMITING_5"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_6"),
                 CRULES_HASHEDSTR("EPIC_GREAT_SMITING_7"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_8"),
                 CRULES_HASHEDSTR("EPIC_GREAT_SMITING_9"), CRULES_HASHEDSTR("EPIC_GREAT_SMITING_10")
             };
-            
+
             for (int i = 10; i > 0; --i)
             {
                 if (thisPtr->HasFeat(nBaseFeat + i))
@@ -691,7 +692,7 @@ void RangedWeaponsUseOnHitEffectItemProperties()
                                 nEquipmentSlot = Constants::EquipmentSlot::Bullets;
                                 break;
                         }
-         
+
                         if (nEquipmentSlot)
                         {
                             if (auto *pAmmunition = pCreature->m_pInventory->GetItemInSlot(nEquipmentSlot))
@@ -727,7 +728,7 @@ void RangedWeaponsUseOnHitEffectItemProperties()
             }
 
             s_ResolveOnHitEffectHook->CallOriginal<void>(pCreature, pTarget, bOffHandAttack, bCritical);
-            
+
         }, Hooks::Order::Earliest);
 }
 
@@ -769,7 +770,7 @@ void RangedWeaponsUseOnHitCastSpellItemProperties()
                                 nEquipmentSlot = Constants::EquipmentSlot::Bullets;
                                 break;
                         }
-         
+
                         if (nEquipmentSlot)
                         {
                             if (auto *pAmmunition = pCreature->m_pInventory->GetItemInSlot(nEquipmentSlot))
@@ -805,7 +806,7 @@ void RangedWeaponsUseOnHitCastSpellItemProperties()
             }
 
             s_ResolveItemCastSpellHook->CallOriginal<void>(pCreature, pTarget);
-            
+
         }, Hooks::Order::Earliest);
 }
 
@@ -826,7 +827,7 @@ void FixDefensiveStanceTotalUses()
                 {
                     if (!pThis->HasFeat(nFeat))
                         return 0;
-                    
+
                     bool bFeatUsesFound = false;
                     for (int32_t i = 0; i < pThis->m_lstFeatUses.num; i++)
                     {
@@ -857,14 +858,14 @@ void FixDefensiveStanceTotalUses()
             {
                 if (!Globals::Rules()->GetFeat(nFeat))
                     return 0;
-                
+
                 if (pThis->GetIsDM())
                     return 100;
 
                 if (!pThis->HasFeat(nFeat))
                     return 0;
 
-                /* 
+                /*
                 //Commented out to make the stance infinite
                 auto nNumUses = pThis->GetFeatTotalUses(nFeat);
 
@@ -917,7 +918,7 @@ NWNX_EXPORT ArgumentStack SetClassProgressesBardSongUses(ArgumentStack&& args)
                 {
                     if (!pThis->HasFeat(nFeat))
                         return 0;
-                    
+
                     bool bFeatUsesFound = false;
                     for (int32_t i = 0; i < pThis->m_lstFeatUses.num; i++)
                     {
@@ -935,7 +936,7 @@ NWNX_EXPORT ArgumentStack SetClassProgressesBardSongUses(ArgumentStack&& args)
                         nBardSongClassLevels += pThis->GetNumLevelsOfClass(it);
 
                     auto nNumUses = pFeat->m_nUsesPerDay + nBardSongClassLevels;
-                    
+
                     // We combine Extra Music into Lingering Song
                     if (s_LingeringSongExtraMusic && (pThis->HasFeat(Constants::Feat::LingeringSong) || pThis->HasFeat(Constants::Feat::ExtraMusic)))
                     {
@@ -952,7 +953,7 @@ NWNX_EXPORT ArgumentStack SetClassProgressesBardSongUses(ArgumentStack&& args)
                         return 100;
 
                     return nNumUses;
-                
+
                 }
             }
 
@@ -1138,7 +1139,7 @@ void ExtendEffectACBonusTypes()
                             pEffect->GetInteger(4) != 0 ||
                             pEffect->GetInteger(5) != 4103)
                                 continue;
-                        
+
                         if (pEffect->m_nType == Constants::EffectTrueType::ACIncrease)
                             retval += pEffect->GetInteger(1);
                         else
@@ -1276,7 +1277,7 @@ void TempestAmbidexterity()
                 s_TempestAmbidexterityModifier = 2;
             else if (pStats->HasFeat(FEAT_TEMPEST_AMBIDEXTERITY_1))
                 s_TempestAmbidexterityModifier = 1;
-            
+
             auto retval = s_GetAttackModifierVersusHook->CallOriginal<int32_t>(pStats, pCreature);
             s_TempestAmbidexterityModifier = 0;
 
@@ -1299,7 +1300,7 @@ void TempestAmbidexterity()
                 s_TempestAmbidexterityModifier = 2;
             else if (pStats->HasFeat(FEAT_TEMPEST_AMBIDEXTERITY_1))
                 s_TempestAmbidexterityModifier = 1;
-            
+
             auto retval = s_GetMeleeAttackBonusHook->CallOriginal<int32_t>(pStats, bOffHand, bIncludeBase, bTouchAttack);
             s_TempestAmbidexterityModifier = 0;
 
@@ -1320,7 +1321,7 @@ NWNX_EXPORT ArgumentStack SetCreatureAge(ArgumentStack&& args)
 {
     if (auto *pCreature = Utils::PopCreature(args))
         pCreature->m_pStats->m_nAge = args.extract<int32_t>();
-    
+
     return {};
 }
 
@@ -1341,7 +1342,7 @@ NWNX_EXPORT ArgumentStack SetUseBaseItemTypeUnequippedAllowed(ArgumentStack&& ar
         m_BaseItemsAllowUseUnequipped.insert(nItemType);
     else
         m_BaseItemsAllowUseUnequipped.erase(nItemType);
-    
+
     static Hooks::Hook s_UseItemHook =
         Hooks::HookFunction(&CNWSCreature::UseItem,
         +[](CNWSCreature *pThis, ObjectID oidItem, uint8_t nActivePropertyIndex, uint8_t nSubPropertyIndex, ObjectID oidTarget, Vector vTargetPosition, ObjectID oidArea, int32_t bUseCharges) -> int32_t
@@ -1357,7 +1358,7 @@ NWNX_EXPORT ArgumentStack SetUseBaseItemTypeUnequippedAllowed(ArgumentStack&& ar
                     return retval;
                 }
             }
-            
+
             return s_UseItemHook->CallOriginal<int32_t>(pThis, oidItem, nActivePropertyIndex, nSubPropertyIndex, oidTarget, vTargetPosition, oidArea, bUseCharges);
         }, Hooks::Order::Late);
 
@@ -1431,7 +1432,7 @@ void CustomHolyAvengerProperty()
             auto nPaladinLevels = pStats->GetNumLevelsOfClass(Constants::ClassType::Paladin);
             bool bIsUnholyAvenger = (nBlackguardLevels >= 10);
             bool bIsHolyAvenger = (nPaladinLevels >= 1);
-            
+
             // Enhancement bonus requires any level of Blackguard or Paladin
             if (nBlackguardLevels < 1 && nPaladinLevels < 1)
                 return 0; // Neither Blackguard nor Paladin - do not apply
@@ -1491,7 +1492,7 @@ void CustomHolyAvengerProperty()
                     pDamageBonusProperty->m_nParam1Value = 21; // Radiant (21) from iprp_damagetypes.2da
                     pDamageBonusProperty->m_nChanceOfAppearing = 100;
                     pDamageBonusProperty->m_bUseable = true;
-                    pDamageBonusProperty->m_nUsesPerDay = -1; // Unlimited uses     
+                    pDamageBonusProperty->m_nUsesPerDay = -1; // Unlimited uses
                 }
 
                 // Apply the damage bonus
@@ -1535,9 +1536,9 @@ static void ReadSpellsFromGffHook(CNWSCreatureStats* pCreatureStats, CResGFF* pR
 {
     // Set creature context for spell validation during spell reading
     s_pCurrentCreatureStats = pCreatureStats;
-    
+
     s_ReadSpellsFromGffHook->CallOriginal<void>(pCreatureStats, pRes, pGffStructWithCreatureStats, bDefaultUnsavedSpellsAsReadied);
-    
+
     // Clear context after spell reading
     s_pCurrentCreatureStats = nullptr;
 }
@@ -1551,7 +1552,7 @@ static int32_t GetPrestigeClassCasterLevels(uint8_t nClassId)
     auto* pStats = s_pCurrentCreatureStats;
     auto* pRules = Globals::Rules();
     auto* p2DA = pRules->m_p2DArrays->GetCached2DA("classes", true);
-    
+
     if (!p2DA)
         return 0;
 
@@ -1561,7 +1562,7 @@ static int32_t GetPrestigeClassCasterLevels(uint8_t nClassId)
     int spellCaster, arcane;
     if (!p2DA->GetINTEntry(nClassId, "SpellCaster", &spellCaster) || !spellCaster)
         return 0;
-    
+
     if (!p2DA->GetINTEntry(nClassId, "Arcane", &arcane))
         return 0;
 
@@ -1569,13 +1570,13 @@ static int32_t GetPrestigeClassCasterLevels(uint8_t nClassId)
     const char* modColumn = bIsArcane ? "ArcSpellLvlMod" : "DivSpellLvlMod";
 
     int32_t nBonusLevels = 0;
-    
+
     // Look through all the character's classes for prestige classes that advance this caster type
     for (int i = 0; i < pStats->m_nNumMultiClasses; i++)
     {
         auto nCurrentClassId = pStats->m_ClassInfo[i].m_nClass;
         auto nClassLevel = pStats->m_ClassInfo[i].m_nLevel;
-        
+
         if (nCurrentClassId == nClassId) // Skip the target class itself
             continue;
 
@@ -1589,28 +1590,28 @@ static int32_t GetPrestigeClassCasterLevels(uint8_t nClassId)
             }
         }
     }
-    
+
     return nBonusLevels;
 }
 
 static uint8_t GetSpellsKnownPerLevelHook(CNWClass* pClass, uint8_t nLevel, uint8_t nSpellLevel, uint8_t nClass, uint16_t nRace, uint8_t nCastingAbilityBase)
 {
     auto retVal = s_GetSpellsKnownPerLevelHook->CallOriginal<uint8_t>(pClass, nLevel, nSpellLevel, nClass, nRace, nCastingAbilityBase);
-    
+
     // If we have creature context, always check for prestige class bonuses
     if (s_pCurrentCreatureStats)
     {
         int32_t nPrestigeLevels = GetPrestigeClassCasterLevels(nClass);
-        
+
         if (nPrestigeLevels > 0)
         {
             // Try with the effective caster level (base + prestige bonuses)
             uint8_t nEffectiveLevel = std::min(255, static_cast<int>(nLevel) + nPrestigeLevels);
             auto nPrestigeRetVal = s_GetSpellsKnownPerLevelHook->CallOriginal<uint8_t>(pClass, nEffectiveLevel, nSpellLevel, nClass, nRace, nCastingAbilityBase);
-            
+
             if (nPrestigeRetVal > retVal)
             {
-                LOG_DEBUG("Prestige class spell progression: Class %d L%d (+%d) spell level %d increased from %d to %d", 
+                LOG_DEBUG("Prestige class spell progression: Class %d L%d (+%d) spell level %d increased from %d to %d",
                          nClass, nLevel, nPrestigeLevels, nSpellLevel, retVal, nPrestigeRetVal);
                 retVal = nPrestigeRetVal;
             }
@@ -1685,7 +1686,7 @@ static void SummonFamiliarHook(CNWSCreature* pCreature)
         // We'll temporarily add levels to the first wizard/sorcerer class we find
         int nWizardIdx = -1;
         int nSorcererIdx = -1;
-        
+
         for (int i = 0; i < pStats->m_nNumMultiClasses; i++)
         {
             auto nClassId = pStats->m_ClassInfo[i].m_nClass;
@@ -1696,12 +1697,12 @@ static void SummonFamiliarHook(CNWSCreature* pCreature)
         }
 
         int nTargetIdx = (nWizardIdx >= 0) ? nWizardIdx : nSorcererIdx;
-        
+
         if (nTargetIdx >= 0)
         {
             uint8_t nOriginalLevel = pStats->m_ClassInfo[nTargetIdx].m_nLevel;
             uint8_t nBoostedLevel = static_cast<uint8_t>(std::min(255, static_cast<int>(nOriginalLevel) + nBonusLevels));
-            
+
             pStats->m_ClassInfo[nTargetIdx].m_nLevel = nBoostedLevel;
             s_SummonFamiliarHook->CallOriginal<void>(pCreature);
             pStats->m_ClassInfo[nTargetIdx].m_nLevel = nOriginalLevel;
@@ -1750,7 +1751,7 @@ static void SummonAnimalCompanionHook(CNWSCreature* pCreature)
     {
         auto nClassId = pStats->m_ClassInfo[i].m_nClass;
         auto nClassLevel = pStats->m_ClassInfo[i].m_nLevel;
-        
+
         nTotalLevel += nClassLevel;
 
         if (nClassId == Constants::ClassType::Druid)
@@ -1890,6 +1891,334 @@ void NetworkDecompressionStallPrevention()
         pUncompressMessage,
         (void*)&UncompressMessageHookFunc,
         Hooks::Order::Earliest);
+}
+
+// Guard against a long-standing engine crash: an AI apply-effect event
+// can fire with a CGameEffect payload that was already destroyed elsewhere,
+// crashing in the effect's destructor inside CNWSObject::ApplyEffect.
+// The destructor hook tombstones destroyed effect pointers (constructor hooks
+// clear the tombstone when the allocator reuses the address for a new effect),
+// and the EventHandler hook drops apply-effect events whose payload is a
+// known-destroyed effect, logging instead of crashing.
+static Hooks::Hook s_GameEffectCtorHook;
+static Hooks::Hook s_GameEffectCopyCtorHook;
+static Hooks::Hook s_GameEffectDtorHook;
+static Hooks::Hook s_CreatureEventHandlerHook;
+static std::unordered_set<const void*> s_DestroyedGameEffects;
+
+static void GameEffectCtorProc(CGameEffect *pThis, int32_t bCreateNewID)
+{
+    s_DestroyedGameEffects.erase(pThis);
+    s_GameEffectCtorHook->CallOriginal<void>(pThis, bCreateNewID);
+}
+
+static void GameEffectCopyCtorProc(CGameEffect *pThis, CGameEffect *pParent, int32_t bCopyIconVisibility)
+{
+    s_DestroyedGameEffects.erase(pThis);
+    s_GameEffectCopyCtorHook->CallOriginal<void>(pThis, pParent, bCopyIconVisibility);
+}
+
+static void GameEffectDtorProc(CGameEffect *pThis)
+{
+    // The allocator reuses effect-sized chunks heavily so the set stays small
+    // in practice, but cap it so months of uptime cannot grow it unbounded.
+    if (s_DestroyedGameEffects.size() > 250000)
+    {
+        LOG_WARNING("EffectEventGuard: tombstone set exceeded 250k entries, resetting.");
+        s_DestroyedGameEffects.clear();
+    }
+    s_DestroyedGameEffects.insert(pThis);
+    s_GameEffectDtorHook->CallOriginal<void>(pThis);
+}
+
+static void CreatureEventHandlerProc(CNWSCreature *pThis, uint32_t nEventId, ObjectID nCallerObjectId,
+                                     void *pScript, uint32_t nCalendarDay, uint32_t nTimeOfDay)
+{
+    const uint32_t EVENT_APPLY_EFFECT = 5;
+    if (nEventId == EVENT_APPLY_EFFECT && pScript && s_DestroyedGameEffects.count(pScript))
+    {
+        LOG_ERROR("EffectEventGuard: dropped apply-effect event with already-destroyed CGameEffect %p "
+                  "(target 0x%08x, caller 0x%08x). This would have crashed the server.",
+                  pScript, pThis->m_idSelf, nCallerObjectId);
+        return;
+    }
+    s_CreatureEventHandlerHook->CallOriginal<void>(pThis, nEventId, nCallerObjectId, pScript, nCalendarDay, nTimeOfDay);
+}
+
+void EffectEventGuard() __attribute__((constructor));
+void EffectEventGuard()
+{
+    if (!Config::Get<bool>("ENABLE_EFFECT_EVENT_GUARD", false))
+        return;
+
+    void *pCtor = dlsym(RTLD_DEFAULT, "_ZN11CGameEffectC1Ei");
+    void *pCopyCtor = dlsym(RTLD_DEFAULT, "_ZN11CGameEffectC1EPS_i");
+    void *pDtor = dlsym(RTLD_DEFAULT, "_ZN11CGameEffectD1Ev");
+    void *pEventHandler = dlsym(RTLD_DEFAULT, "_ZN12CNWSCreature12EventHandlerEjjPvjj");
+
+    if (!pCtor || !pCopyCtor || !pDtor || !pEventHandler)
+    {
+        LOG_ERROR("EffectEventGuard: failed to resolve symbols (ctor %p, copy ctor %p, dtor %p, "
+                  "event handler %p); guard disabled.",
+                  pCtor, pCopyCtor, pDtor, pEventHandler);
+        return;
+    }
+
+    LOG_INFO("Effect event guard enabled: apply-effect events with destroyed payloads will be dropped and logged.");
+
+    s_GameEffectCtorHook = Hooks::HookFunction(pCtor, (void*)&GameEffectCtorProc, Hooks::Order::Earliest);
+    s_GameEffectCopyCtorHook = Hooks::HookFunction(pCopyCtor, (void*)&GameEffectCopyCtorProc, Hooks::Order::Earliest);
+    s_GameEffectDtorHook = Hooks::HookFunction(pDtor, (void*)&GameEffectDtorProc, Hooks::Order::Earliest);
+    s_CreatureEventHandlerHook = Hooks::HookFunction(pEventHandler, (void*)&CreatureEventHandlerProc, Hooks::Order::Early);
+}
+
+// Strike modifiers applied by the hooks in ResolveWeaponStrike
+struct WeaponStrikeParams
+{
+    bool bActive = false;
+    ObjectID oidAttacker = Constants::OBJECT_INVALID;
+    int32_t nAttackBonusMod = 0;
+    bool bAutoHit = false;
+    int32_t nCritOverride = 0;   // 1 = never crit, 2 = hits become crits
+    int32_t nSneakOverride = 0;  // 1 = never sneak, 2 = force sneak
+    uint32_t nBonusDamageType = 0;
+    int32_t nBonusDamage = 0;
+};
+static WeaponStrikeParams s_Strike;
+
+// Resolves a single melee attack (at best attack bonus) from the
+// attacker against the target using the engine's combat resolution.
+// No range check.
+// Arguments:
+//   nStrModOverride  255 = uses real STR; otherwise substitutes the cached STR
+//                    modifier for attack and damage (e.g. Whirling Blade INT/CHA)
+//   nAttackBonusMod  flat attack bonus modifier for this strike
+//   bOffHand         resolve with the off-hand weapon instead of the main hand
+//   bAutoHit         a missed/parried/concealed result becomes an automatic hit
+//   nCritOverride    0 = normal, 1 = never crit, 2 = hits become critical hits
+//   nSneakOverride   0 = normal, 1 = never sneak attack, 2 = force sneak attack
+//   nBonusDamageType DAMAGE_TYPE_* flag for extra damage on hit (0 = none)
+//   nBonusDamage     extra damage amount (roll dice script-side)
+// IMPORTANT: MUST NOT BE CALLED FROM NWNX attack/damage event scripts: those run inside
+// the engine's own attack resolution and this would corrupt the in-flight flurry.
+// Enforced at runtime: such calls are refused with a warning and return all zeros.
+NWNX_EXPORT ArgumentStack ResolveWeaponStrike(ArgumentStack&& args)
+{
+    // Depth guard: scripts fired from inside the engine's attack resolution
+    // (NWNX attack/damage events and the like) must not launch a strike --
+    // ClearAttackData() and the counter juggling below would trash the slot
+    // the in-flight flurry is resolving.
+    static int32_t s_nAttackResolutionDepth = 0;
+    static Hooks::Hook s_ResolveMeleeAttackDepthHook = Hooks::HookFunction(&CNWSCreature::ResolveMeleeAttack,
+        +[](CNWSCreature *pThis, CNWSObject *pTarget, int32_t nAttacks, int32_t nTimeAnimation) -> void
+        {
+            s_nAttackResolutionDepth++;
+            s_ResolveMeleeAttackDepthHook->CallOriginal<void>(pThis, pTarget, nAttacks, nTimeAnimation);
+            s_nAttackResolutionDepth--;
+        }, Hooks::Order::Earliest);
+
+    static Hooks::Hook s_ResolveRangedAttackDepthHook = Hooks::HookFunction(&CNWSCreature::ResolveRangedAttack,
+        +[](CNWSCreature *pThis, CNWSObject *pTarget, int32_t nAttacks, int32_t nTimeAnimation) -> void
+        {
+            s_nAttackResolutionDepth++;
+            s_ResolveRangedAttackDepthHook->CallOriginal<void>(pThis, pTarget, nAttacks, nTimeAnimation);
+            s_nAttackResolutionDepth--;
+        }, Hooks::Order::Earliest);
+
+    // Flat AB modifier: GetAttackModifierVersus() is the engine's total attack
+    // modifier vs the current target, used by ResolveAttackRoll.
+    static Hooks::Hook s_GetAttackModifierVersusHook = Hooks::HookFunction(&CNWSCreatureStats::GetAttackModifierVersus,
+        +[](CNWSCreatureStats *pThis, CNWSCreature *pTargetCreature) -> int32_t
+        {
+            int32_t nMod = s_GetAttackModifierVersusHook->CallOriginal<int32_t>(pThis, pTargetCreature);
+            if (s_Strike.bActive && pThis->m_pBaseCreature && pThis->m_pBaseCreature->m_idSelf == s_Strike.oidAttacker)
+                nMod += s_Strike.nAttackBonusMod;
+            return nMod;
+        }, Hooks::Order::Late);
+
+    // Auto-hit and crit/sneak overrides: runs after the roll but before
+    // ResolveDamage, so damage follows the adjusted result.
+    static Hooks::Hook s_ResolveAttackRollHook = Hooks::HookFunction(&CNWSCreature::ResolveAttackRoll,
+        +[](CNWSCreature *pThis, CNWSObject *pTarget) -> void
+        {
+            s_ResolveAttackRollHook->CallOriginal<void>(pThis, pTarget);
+
+            if (!s_Strike.bActive || pThis->m_idSelf != s_Strike.oidAttacker)
+                return;
+
+            auto *pData = pThis->m_pcCombatRound->GetAttack(pThis->m_pcCombatRound->m_nCurrentAttack);
+
+            if (s_Strike.bAutoHit && !pThis->GetAttackResultHit(pData))
+            {
+                pData->m_nAttackResult = 7; // automatic hit
+                pData->m_nMissedBy = 0;
+            }
+
+            if (s_Strike.nCritOverride == 1 && pData->m_nAttackResult == 3)
+            {
+                pData->m_nAttackResult = 1;
+                pData->m_bCriticalThreat = false;
+            }
+            else if (s_Strike.nCritOverride == 2 && pData->m_nAttackResult == 1)
+            {
+                pData->m_nAttackResult = 3;
+                pData->m_bCriticalThreat = true;
+            }
+
+            if (s_Strike.nSneakOverride == 1)
+                pData->m_bSneakAttack = false;
+            else if (s_Strike.nSneakOverride == 2)
+                pData->m_bSneakAttack = true;
+        }, Hooks::Order::Late);
+
+    // Bonus damage: appended after the engine computed the attack's damage.
+    static Hooks::Hook s_ResolveDamageHook = Hooks::HookFunction(&CNWSCreature::ResolveDamage,
+        +[](CNWSCreature *pThis, CNWSObject *pTarget) -> void
+        {
+            s_ResolveDamageHook->CallOriginal<void>(pThis, pTarget);
+
+            if (!s_Strike.bActive || pThis->m_idSelf != s_Strike.oidAttacker)
+                return;
+
+            if (s_Strike.nBonusDamage > 0 && s_Strike.nBonusDamageType != 0)
+            {
+                auto *pData = pThis->m_pcCombatRound->GetAttack(pThis->m_pcCombatRound->m_nCurrentAttack);
+                if (pThis->GetAttackResultHit(pData))
+                {
+                    // The attack data stores damage in int16_t slots (GetDamage
+                    // returns -1 for an empty slot): clamp so existing + bonus
+                    // can't overflow past INT16_MAX.
+                    const int32_t nCurrent = std::max(0, pData->GetDamage(s_Strike.nBonusDamageType));
+                    const int32_t nAdd = std::min(s_Strike.nBonusDamage, 32767 - nCurrent);
+                    if (nAdd > 0)
+                        pData->AddDamage(s_Strike.nBonusDamageType, nAdd);
+                }
+            }
+        }, Hooks::Order::Late);
+
+    static bool s_bStrikeInProgress = false;
+
+    int32_t nAttackResult = 0;
+    int32_t nTotalDamage = 0;
+    int32_t nToHitRoll = 0;
+    int32_t nToHitMod = 0;
+    int32_t bSneakAttack = false;
+    int32_t bKillingBlow = false;
+
+    if (auto *pAttacker = Utils::PopCreature(args))
+    {
+        auto *pTarget = Utils::PopObject(args);
+        const auto nStrModOverride = args.extract<int32_t>();
+        const auto nAttackBonusMod = args.extract<int32_t>();
+        const auto bOffHand = !!args.extract<int32_t>();
+        const auto bAutoHit = !!args.extract<int32_t>();
+        const auto nCritOverride = args.extract<int32_t>();
+        const auto nSneakOverride = args.extract<int32_t>();
+        auto nBonusDamageType = (uint32_t)args.extract<int32_t>();
+        const auto nBonusDamage = args.extract<int32_t>();
+
+        // Only a single DAMAGE_TYPE_* bit is meaningful; a multi-bit mask
+        // would smear the bonus across unrelated engine damage slots.
+        if (nBonusDamageType & (nBonusDamageType - 1))
+        {
+            LOG_WARNING("ResolveWeaponStrike: bonus damage type 0x%08X is not a single DAMAGE_TYPE_* flag; bonus damage ignored.",
+                        nBonusDamageType);
+            nBonusDamageType = 0;
+        }
+
+        // The engine only ever resolves attacks against these; anything else
+        // (items, triggers, AoEs, ...) is untested engine territory.
+        const bool bAttackableTarget = pTarget &&
+            (pTarget->m_nObjectType == Constants::ObjectType::Creature ||
+             pTarget->m_nObjectType == Constants::ObjectType::Door ||
+             pTarget->m_nObjectType == Constants::ObjectType::Placeable);
+
+        auto *pCombatRound = pAttacker->m_pcCombatRound;
+        auto *pStats = pAttacker->m_pStats;
+
+        if (s_bStrikeInProgress || s_nAttackResolutionDepth > 0)
+        {
+            LOG_WARNING("ResolveWeaponStrike called from inside attack resolution "
+                        "(re-entrant call or attack/damage event script); ignored.");
+        }
+        else if (pTarget && !bAttackableTarget)
+        {
+            LOG_WARNING("ResolveWeaponStrike: target 0x%08X has object type %d; only creatures, doors and placeables can be struck.",
+                        pTarget->m_idSelf, (int32_t)pTarget->m_nObjectType);
+        }
+        else if (bAttackableTarget && pCombatRound && pStats && pTarget->m_idSelf != pAttacker->m_idSelf)
+        {
+            s_bStrikeInProgress = true;
+
+            // The caster may be mid-round (e.g. a spellcast round): save what we borrow.
+            const auto nSavedCurrentAttack    = pCombatRound->m_nCurrentAttack;
+            const auto nSavedOnHandAttacks    = pCombatRound->m_nOnHandAttacks;
+            const auto nSavedOffHandAttacks   = pCombatRound->m_nOffHandAttacks;
+            const auto nSavedSpecialAttacks   = pCombatRound->m_nSpecialAttacks.num;
+            const auto nSavedSpecialAttackIDs = pCombatRound->m_nSpecialAttackIDs.num;
+            const auto nSavedStrMod           = pStats->m_nStrengthModifier;
+            // A killing blow can queue a cleave/circle-kick follow-up inside
+            // ResolveMeleeAttack; a scripted strike must not grant the caster
+            // extra attacks in its real combat round.
+            const auto nSavedCleaveAttacks     = pCombatRound->m_nCleaveAttacks;
+            const auto nSavedCircleKickAttacks = pCombatRound->m_nCircleKickAttacks;
+            const auto oidSavedNewAttackTarget = pCombatRound->m_oidNewAttackTarget;
+
+            // One attack in slot 0 -> best AB. The attack counters make
+            // GetWeaponAttackType() pick the main-hand or off-hand weapon.
+            pCombatRound->m_nCurrentAttack = 0;
+            pCombatRound->m_nOnHandAttacks = bOffHand ? 0 : 1;
+            pCombatRound->m_nOffHandAttacks = bOffHand ? 1 : 0;
+            // Don't let this attack consume queued special attacks (knockdown etc).
+            pCombatRound->m_nSpecialAttacks.num = 0;
+            pCombatRound->m_nSpecialAttackIDs.num = 0;
+            // Reset the slot: stale m_nAttackType would reroute into
+            // ResolveMeleeSpecialAttack. Verified from decompile: ClearAttackData
+            // zeroes scalars and the list counts (without deleting the elements,
+            // which are owned by queued combat events) and frees only its own
+            // debug-text buffers, so calling it here is safe even while earlier
+            // attacks' events are still pending.
+            auto *pAttackData = pCombatRound->GetAttack(0);
+            pAttackData->ClearAttackData();
+
+            if (nStrModOverride != 255)
+                pStats->m_nStrengthModifier = (char)nStrModOverride;
+
+            s_Strike.bActive = true;
+            s_Strike.oidAttacker = pAttacker->m_idSelf;
+            s_Strike.nAttackBonusMod = nAttackBonusMod;
+            s_Strike.bAutoHit = bAutoHit;
+            s_Strike.nCritOverride = nCritOverride;
+            s_Strike.nSneakOverride = nSneakOverride;
+            s_Strike.nBonusDamageType = nBonusDamageType;
+            s_Strike.nBonusDamage = nBonusDamage;
+
+            pAttacker->ResolveMeleeAttack(pTarget, 1, 0);
+
+            s_Strike = {};
+
+            nAttackResult = pAttackData->m_nAttackResult;
+            nTotalDamage = pAttackData->GetTotalDamage(true);
+            nToHitRoll = pAttackData->m_nToHitRoll;
+            nToHitMod = pAttackData->m_nToHitMod;
+            bSneakAttack = pAttackData->m_bSneakAttack;
+            bKillingBlow = pAttackData->m_bKillingBlow;
+
+            pStats->m_nStrengthModifier           = nSavedStrMod;
+            pCombatRound->m_nCurrentAttack        = nSavedCurrentAttack;
+            pCombatRound->m_nOnHandAttacks        = nSavedOnHandAttacks;
+            pCombatRound->m_nOffHandAttacks       = nSavedOffHandAttacks;
+            pCombatRound->m_nSpecialAttacks.num   = nSavedSpecialAttacks;
+            pCombatRound->m_nSpecialAttackIDs.num = nSavedSpecialAttackIDs;
+            pCombatRound->m_nCleaveAttacks        = nSavedCleaveAttacks;
+            pCombatRound->m_nCircleKickAttacks    = nSavedCircleKickAttacks;
+            pCombatRound->m_oidNewAttackTarget    = oidSavedNewAttackTarget;
+
+            s_bStrikeInProgress = false;
+        }
+    }
+
+    return ScriptAPI::Arguments(bKillingBlow, bSneakAttack, nToHitMod, nToHitRoll, nTotalDamage, nAttackResult);
 }
 
 }

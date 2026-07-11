@@ -79,6 +79,38 @@ void NWNX_CormyrDalelands_SetSpellQuicken(int nSpellId);
 /// @param nClassID The class.
 void NWNX_CormyrDalelands_SetClassProgressesSmiteEvil(int nClassID);
 
+/// @brief Result of NWNX_CormyrDalelands_ResolveWeaponStrike().
+struct NWNX_CormyrDalelands_WeaponStrike
+{
+    /// 1=hit, 2=parried, 3=critical hit, 4=miss, 5=resisted, 7=automatic hit,
+    /// 8=concealed, 9=miss chance, 10=devastating crit. 0 on error.
+    int nAttackResult;
+    /// Total damage dealt on a hit, before the target's resistances/immunities.
+    int nTotalDamage;
+    int nToHitRoll;   ///< The d20 attack roll.
+    int nToHitMod;    ///< The attack modifier used against the target.
+    int bSneakAttack; ///< TRUE if the strike was a sneak attack.
+    int bKillingBlow; ///< TRUE if the strike killed the target.
+};
+
+/// @brief Resolves one melee attack (at best attack bonus) against oTarget using the
+/// engine's full combat resolution. Attack roll, damage, crits, sneak attack, feedback
+/// and on-hit effects all behave like a real attack.
+/// @warning Do not call from NWNX attack/damage event scripts (e.g. cdx_d_onattack /
+/// cdx_d_ondamage): those run inside the engine's own attack resolution.
+/// @param oAttacker The attacking creature.
+/// @param oTarget The target (creature, door or placeable).
+/// @param nStrModOverride Substitute STR modifier for attack and damage rolls. 255 = use real STR.
+/// @param nAttackBonusMod Flat attack bonus modifier for this strike.
+/// @param bOffHand TRUE = strike with the off-hand weapon instead of the main hand.
+/// @param bAutoHit TRUE = a miss/parry/concealment result becomes an automatic hit.
+/// @param nCritOverride 0 = normal, 1 = never crit, 2 = hits become critical hits.
+/// @param nSneakOverride 0 = normal, 1 = never sneak, 2 = force sneak (bypasses the engine's own eligibility checks).
+/// @param nBonusDamageType DAMAGE_TYPE_* for extra damage on hit (0 = none).
+/// @param nBonusDamage Extra damage amount; roll any dice script-side.
+/// @return The attack result, see NWNX_CormyrDalelands_WeaponStrike.
+struct NWNX_CormyrDalelands_WeaponStrike NWNX_CormyrDalelands_ResolveWeaponStrike(object oAttacker, object oTarget, int nStrModOverride = 255, int nAttackBonusMod = 0, int bOffHand = FALSE, int bAutoHit = FALSE, int nCritOverride = 0, int nSneakOverride = 0, int nBonusDamageType = 0, int nBonusDamage = 0);
+
 int NWNX_CormyrDalelands_GetCreatureIncorporealFlag(object oCreature)
 {
     NWNXPushObject(oCreature);
@@ -186,4 +218,28 @@ void NWNX_CormyrDalelands_SetClassProgressesSmiteEvil(int nClassID)
 {
     NWNXPushInt(nClassID);
     NWNXCall(NWNX_CormyrDalelands, "SetClassProgressesSmiteEvil");
+}
+
+struct NWNX_CormyrDalelands_WeaponStrike NWNX_CormyrDalelands_ResolveWeaponStrike(object oAttacker, object oTarget, int nStrModOverride = 255, int nAttackBonusMod = 0, int bOffHand = FALSE, int bAutoHit = FALSE, int nCritOverride = 0, int nSneakOverride = 0, int nBonusDamageType = 0, int nBonusDamage = 0)
+{
+    NWNXPushInt(nBonusDamage);
+    NWNXPushInt(nBonusDamageType);
+    NWNXPushInt(nSneakOverride);
+    NWNXPushInt(nCritOverride);
+    NWNXPushInt(bAutoHit);
+    NWNXPushInt(bOffHand);
+    NWNXPushInt(nAttackBonusMod);
+    NWNXPushInt(nStrModOverride);
+    NWNXPushObject(oTarget);
+    NWNXPushObject(oAttacker);
+    NWNXCall(NWNX_CormyrDalelands, "ResolveWeaponStrike");
+
+    struct NWNX_CormyrDalelands_WeaponStrike strike;
+    strike.nAttackResult = NWNXPopInt();
+    strike.nTotalDamage = NWNXPopInt();
+    strike.nToHitRoll = NWNXPopInt();
+    strike.nToHitMod = NWNXPopInt();
+    strike.bSneakAttack = NWNXPopInt();
+    strike.bKillingBlow = NWNXPopInt();
+    return strike;
 }
