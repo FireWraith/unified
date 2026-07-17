@@ -1893,83 +1893,57 @@ void NetworkDecompressionStallPrevention()
         Hooks::Order::Earliest);
 }
 
-// Guard against a long-standing engine crash: an AI apply-effect event
-// can fire with a CGameEffect payload that was already destroyed elsewhere,
-// crashing in the effect's destructor inside CNWSObject::ApplyEffect.
-// The destructor hook tombstones destroyed effect pointers (constructor hooks
-// clear the tombstone when the allocator reuses the address for a new effect),
-// and the EventHandler hook drops apply-effect events whose payload is a
-// known-destroyed effect, logging instead of crashing.
-static Hooks::Hook s_GameEffectCtorHook;
-static Hooks::Hook s_GameEffectCopyCtorHook;
-static Hooks::Hook s_GameEffectDtorHook;
-static Hooks::Hook s_CreatureEventHandlerHook;
-static std::unordered_set<const void*> s_DestroyedGameEffects;
-
-static void GameEffectCtorProc(CGameEffect *pThis, int32_t bCreateNewID)
+// SignalMeleeDamage/SignalRangedDamage queue raw pointers from the attack
+// slot's on-hit/feedback lists without clearing them, so signaling the same
+// slot twice before the round boundary queues the same pointers twice and
+// causes a double free. Clear the lists right after the events are queued.
+static void ClearSignaledAttackSlots(CNWSCreature *pCreature, int32_t nAttacks)
 {
-    s_DestroyedGameEffects.erase(pThis);
-    s_GameEffectCtorHook->CallOriginal<void>(pThis, bCreateNewID);
-}
-
-static void GameEffectCopyCtorProc(CGameEffect *pThis, CGameEffect *pParent, int32_t bCopyIconVisibility)
-{
-    s_DestroyedGameEffects.erase(pThis);
-    s_GameEffectCopyCtorHook->CallOriginal<void>(pThis, pParent, bCopyIconVisibility);
-}
-
-static void GameEffectDtorProc(CGameEffect *pThis)
-{
-    // The allocator reuses effect-sized chunks heavily so the set stays small
-    // in practice, but cap it so months of uptime cannot grow it unbounded.
-    if (s_DestroyedGameEffects.size() > 250000)
-    {
-        LOG_WARNING("EffectEventGuard: tombstone set exceeded 250k entries, resetting.");
-        s_DestroyedGameEffects.clear();
-    }
-    s_DestroyedGameEffects.insert(pThis);
-    s_GameEffectDtorHook->CallOriginal<void>(pThis);
-}
-
-static void CreatureEventHandlerProc(CNWSCreature *pThis, uint32_t nEventId, ObjectID nCallerObjectId,
-                                     void *pScript, uint32_t nCalendarDay, uint32_t nTimeOfDay)
-{
-    const uint32_t EVENT_APPLY_EFFECT = 5;
-    if (nEventId == EVENT_APPLY_EFFECT && pScript && s_DestroyedGameEffects.count(pScript))
-    {
-        LOG_ERROR("EffectEventGuard: dropped apply-effect event with already-destroyed CGameEffect %p "
-                  "(target 0x%08x, caller 0x%08x). This would have crashed the server.",
-                  pScript, pThis->m_idSelf, nCallerObjectId);
-        return;
-    }
-    s_CreatureEventHandlerHook->CallOriginal<void>(pThis, nEventId, nCallerObjectId, pScript, nCalendarDay, nTimeOfDay);
-}
-
-void EffectEventGuard() __attribute__((constructor));
-void EffectEventGuard()
-{
-    if (!Config::Get<bool>("ENABLE_EFFECT_EVENT_GUARD", false))
+    auto *pCombatRound = pCreature->m_pcCombatRound;
+    if (!pCombatRound)
         return;
 
-    void *pCtor = dlsym(RTLD_DEFAULT, "_ZN11CGameEffectC1Ei");
-    void *pCopyCtor = dlsym(RTLD_DEFAULT, "_ZN11CGameEffectC1EPS_i");
-    void *pDtor = dlsym(RTLD_DEFAULT, "_ZN11CGameEffectD1Ev");
-    void *pEventHandler = dlsym(RTLD_DEFAULT, "_ZN12CNWSCreature12EventHandlerEjjPvjj");
+    int32_t nEnd = pCombatRound->m_nCurrentAttack;
+    int32_t nStart = nEnd - nAttacks;
+    if (nStart < 0)
+        nStart = 0;
+    if (nEnd > 50)
+        nEnd = 50;
 
-    if (!pCtor || !pCopyCtor || !pDtor || !pEventHandler)
+    for (int32_t i = nStart; i < nEnd; i++)
     {
-        LOG_ERROR("EffectEventGuard: failed to resolve symbols (ctor %p, copy ctor %p, dtor %p, "
-                  "event handler %p); guard disabled.",
-                  pCtor, pCopyCtor, pDtor, pEventHandler);
-        return;
+        auto *pAttackData = pCombatRound->GetAttack(i);
+        pAttackData->m_alstOnHitGameEffects.num = 0;
+        pAttackData->m_alstOnHitSpellScripts.num = 0;
+        pAttackData->m_alstOnHitEnemySpellScripts.num = 0;
+        pAttackData->m_alstPendingFeedback.num = 0;
     }
+}
 
-    LOG_INFO("Effect event guard enabled: apply-effect events with destroyed payloads will be dropped and logged.");
+void FixOnHitEventDoubleQueue() __attribute__((constructor));
+void FixOnHitEventDoubleQueue()
+{
+    if (!Config::Get<bool>("FIX_ONHIT_EVENT_DOUBLE_QUEUE", false))
+        return;
 
-    s_GameEffectCtorHook = Hooks::HookFunction(pCtor, (void*)&GameEffectCtorProc, Hooks::Order::Earliest);
-    s_GameEffectCopyCtorHook = Hooks::HookFunction(pCopyCtor, (void*)&GameEffectCopyCtorProc, Hooks::Order::Earliest);
-    s_GameEffectDtorHook = Hooks::HookFunction(pDtor, (void*)&GameEffectDtorProc, Hooks::Order::Earliest);
-    s_CreatureEventHandlerHook = Hooks::HookFunction(pEventHandler, (void*)&CreatureEventHandlerProc, Hooks::Order::Early);
+    LOG_INFO("On-hit event ownership fix enabled: attack data on-hit/feedback lists are cleared after their events are queued.");
+
+    static Hooks::Hook s_SignalMeleeDamageHook = Hooks::HookFunction(&CNWSCreature::SignalMeleeDamage,
+        +[](CNWSCreature *pCreature, CNWSObject *pTarget, int32_t nAttacks) -> void
+        {
+            s_SignalMeleeDamageHook->CallOriginal<void>(pCreature, pTarget, nAttacks);
+            // The original bails out on a null target without queueing anything.
+            if (pTarget)
+                ClearSignaledAttackSlots(pCreature, nAttacks);
+        }, Hooks::Order::Late);
+
+    static Hooks::Hook s_SignalRangedDamageHook = Hooks::HookFunction(&CNWSCreature::SignalRangedDamage,
+        +[](CNWSCreature *pCreature, CNWSObject *pTarget, int32_t nAttacks) -> void
+        {
+            s_SignalRangedDamageHook->CallOriginal<void>(pCreature, pTarget, nAttacks);
+            if (pTarget)
+                ClearSignaledAttackSlots(pCreature, nAttacks);
+        }, Hooks::Order::Late);
 }
 
 // Strike modifiers applied by the hooks in ResolveWeaponStrike
