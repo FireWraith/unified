@@ -19,6 +19,47 @@ using namespace NWNXLib::API;
 
 static bool s_bMinEquipLevelHooksInitialized = false;
 
+// Force every client that can see pItem's possessor to rebuild the item after its appearance data
+// changed. Blanking the cached object id in the player's CLastUpdateObject makes
+// ComputeAppearanceUpdateRequired() flag 0x200 on the next update, which in turn makes
+// WriteGameObjUpdate_UpdateAppearance() emit a slot delete + slot add; the add carries the full
+// item appearance. The DestroyItem message is what makes the client drop its stale item model
+// instead of reusing it for the re-add.
+static void PushEquippedItemAppearanceUpdate(CNWSItem *pItem)
+{
+    auto *pPossessor = Utils::AsNWSCreature(Utils::GetGameObject(pItem->m_oidPossessor));
+    if (!pPossessor || !pPossessor->m_pInventory || !pPossessor->m_pInventory->GetItemInInventory(pItem))
+        return;
+
+    const uint32_t nSlot = pPossessor->m_pInventory->GetSlotFromItem(pItem);
+    if (nSlot != Constants::EquipmentSlot::Head &&
+        nSlot != Constants::EquipmentSlot::Chest &&
+        nSlot != Constants::EquipmentSlot::Cloak &&
+        nSlot != Constants::EquipmentSlot::RightHand &&
+        nSlot != Constants::EquipmentSlot::LeftHand)
+        return;
+
+    auto *pMessage = Globals::AppManager()->m_pServerExoApp->GetNWSMessage();
+    for (auto *pPlayer : Globals::AppManager()->m_pServerExoApp->GetPlayerList())
+    {
+        if (auto *pLUO = pPlayer->GetLastUpdateObject(pPossessor->m_idSelf))
+        {
+#define UPDATE_ITEM_APPEARANCE(oid)                                                             \
+            if (oid == pItem->m_idSelf) {                                                       \
+                oid = Constants::OBJECT_INVALID;                                                \
+                pMessage->SendServerPlayerItemUpdate_DestroyItem(pPlayer, pItem->m_idSelf);     \
+            }
+
+            UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidHeadItem)
+            UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidChestItem)
+            UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidCloakItem)
+            UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidRightHandItem)
+            UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidLeftHandItem)
+#undef UPDATE_ITEM_APPEARANCE
+        }
+    }
+}
+
 NWNX_EXPORT ArgumentStack SetWeight(ArgumentStack&& args)
 {
     if (auto *pItem = Utils::PopItem(args))
@@ -129,32 +170,8 @@ NWNX_EXPORT ArgumentStack SetItemAppearance(ArgumentStack&& args)
                 break;
         }
 
-        if (auto *pPossessor= Utils::AsNWSCreature(Utils::GetGameObject(pItem->m_oidPossessor)))
-        {
-            if (!bUpdateCreatureAppearance || !pPossessor->m_pInventory->GetItemInInventory(pItem))
-                return {};
-            uint32_t nSlot = pPossessor->m_pInventory->GetSlotFromItem(pItem);
-            if (nSlot != Constants::EquipmentSlot::Head && nSlot != Constants::EquipmentSlot::Chest && nSlot != Constants::EquipmentSlot::Cloak)
-                return {};
-
-            auto *pMessage = Globals::AppManager()->m_pServerExoApp->GetNWSMessage();
-            for (auto *pPlayer : Globals::AppManager()->m_pServerExoApp->GetPlayerList())
-            {
-                if (auto *pLUO = pPlayer->GetLastUpdateObject(pPossessor->m_idSelf))
-                {
-#define UPDATE_ITEM_APPEARANCE(oid)                                                                 \
-                    if (oid == pItem->m_idSelf) {                                                   \
-                        oid = Constants::OBJECT_INVALID;                                            \
-                        pMessage->SendServerPlayerItemUpdate_DestroyItem(pPlayer, pItem->m_idSelf); \
-                    }
-
-                    UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidHeadItem)
-                    UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidChestItem)
-                    UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidCloakItem)
-#undef UPDATE_ITEM_APPEARANCE
-                }
-            }
-        }
+        if (bUpdateCreatureAppearance)
+            PushEquippedItemAppearanceUpdate(pItem);
     }
     return {};
 }
@@ -284,32 +301,8 @@ NWNX_EXPORT ArgumentStack RestoreItemAppearance(ArgumentStack&& args)
         }
         pItem->m_nArmorValue = pItem->ComputeArmorClass();
 
-        if (auto *pPossessor= Utils::AsNWSCreature(Utils::GetGameObject(pItem->m_oidPossessor)))
-        {
-            if (!bUpdateCreatureAppearance || !pPossessor->m_pInventory->GetItemInInventory(pItem))
-                return {};
-            uint32_t nSlot = pPossessor->m_pInventory->GetSlotFromItem(pItem);
-            if (nSlot != Constants::EquipmentSlot::Head && nSlot != Constants::EquipmentSlot::Chest && nSlot != Constants::EquipmentSlot::Cloak)
-                return {};
-
-            auto *pMessage = Globals::AppManager()->m_pServerExoApp->GetNWSMessage();
-            for (auto *pPlayer : Globals::AppManager()->m_pServerExoApp->GetPlayerList())
-            {
-                if (auto *pLUO = pPlayer->GetLastUpdateObject(pPossessor->m_idSelf))
-                {
-#define UPDATE_ITEM_APPEARANCE(oid)                                                                 \
-                    if (oid == pItem->m_idSelf) {                                                   \
-                        oid = Constants::OBJECT_INVALID;                                            \
-                        pMessage->SendServerPlayerItemUpdate_DestroyItem(pPlayer, pItem->m_idSelf); \
-                    }
-
-                    UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidHeadItem)
-                    UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidChestItem)
-                    UPDATE_ITEM_APPEARANCE(pLUO->m_cAppearance.m_oidCloakItem)
-#undef UPDATE_ITEM_APPEARANCE
-                }
-            }
-        }
+        if (bUpdateCreatureAppearance)
+            PushEquippedItemAppearanceUpdate(pItem);
     }
     else
     {

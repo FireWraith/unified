@@ -32,6 +32,7 @@ https://github.com/nwnxee/unified/compare/build8193.37.13...HEAD
 - Events: Added ID to the NWNX_ON_ITEMPROPERTY_EFFECT_* events data.
 - Utils: Change LOG_INFO to LOG_DEBUG for console commands.
 - Admin: Player/DM password functions no longer print the passwords to the log.
+- Item: `bUpdateCreatureAppearance` of `NWNX_Item_SetItemAppearance()`/`NWNX_Item_RestoreItemAppearance()` now also pushes a client refresh for items equipped in the right and left hand slots, so weapon and shield appearance changes are visible instantly without recreating and re-equipping the item.
 
 ### Deprecated
 - N/A
