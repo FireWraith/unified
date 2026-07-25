@@ -12,7 +12,7 @@ using namespace NWNXLib::API;
 static Hooks::Hook s_SendServerToPlayerExamineGui_TrapDataHook;
 static Hooks::Hook s_PermittedToDisplayCharacterSheetHook;
 
-static bool HandleExamine(bool, ObjectID, ObjectID);
+static void HandleExamine(bool, ObjectID, ObjectID);
 static int32_t ExamineTrapHook(CNWSMessage*, CNWSPlayer*, ObjectID, CNWSCreature*, int32_t);
 static int32_t PermittedToDisplayCharacterSheetHook(CNWSPlayer*, ObjectID);
 static int32_t HandlePlayerToServerCharacterSheetMessageHook(CNWSMessage*, CNWSPlayer*, uint8_t);
@@ -22,15 +22,12 @@ void ExamineEvents()
 {
     InitOnFirstSubscribe("NWNX_ON_EXAMINE_OBJECT_.*", []() {
 
-        // Skipping the BEFORE event suppresses the examine data message, which
-        // stops the client from opening the default examine panel.
         #define HOOK_EXAMINE(_address) \
             static Hooks::Hook CAT(pExamineHook, __LINE__) = Hooks::HookFunction(_address, \
             +[](CNWSMessage *pMessage, CNWSPlayer* pPlayer, ObjectID oidObject) -> int32_t \
             { \
-                int32_t retVal = false; \
-                if (HandleExamine(true, pPlayer->m_oidNWSObject, oidObject)) \
-                    retVal = CAT(pExamineHook, __LINE__)->CallOriginal<int32_t>(pMessage, pPlayer, oidObject); \
+                HandleExamine(true, pPlayer->m_oidNWSObject, oidObject); \
+                auto retVal = CAT(pExamineHook, __LINE__)->CallOriginal<int32_t>(pMessage, pPlayer, oidObject); \
                 HandleExamine(false, pPlayer->m_oidNWSObject, oidObject);  \
                 return retVal; \
             }, Hooks::Order::Earliest)
@@ -60,10 +57,10 @@ void ExamineEvents()
     });
 }
 
-bool HandleExamine(bool before, ObjectID examiner, ObjectID examinee)
+void HandleExamine(bool before, ObjectID examiner, ObjectID examinee)
 {
     PushEventData("EXAMINEE_OBJECT_ID", Utils::ObjectIDToString(examinee));
-    return SignalEvent(before ? "NWNX_ON_EXAMINE_OBJECT_BEFORE" : "NWNX_ON_EXAMINE_OBJECT_AFTER", examiner);
+    SignalEvent(before ? "NWNX_ON_EXAMINE_OBJECT_BEFORE" : "NWNX_ON_EXAMINE_OBJECT_AFTER", examiner);
 }
 
 int32_t ExamineTrapHook(CNWSMessage *pMessage, CNWSPlayer* pPlayer, ObjectID oidTrapID, CNWSCreature *pCreature, int32_t bSuccess)

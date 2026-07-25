@@ -2291,7 +2291,6 @@ string NWNX_Events_GetEventData(string tag);
 ///
 /// THIS SHOULD ONLY BE CALLED FROM WITHIN AN EVENT HANDLER.
 /// ONLY WORKS WITH THE FOLLOWING EVENTS:
-/// - Examine Object events (BEFORE only; skipping suppresses the client examine window)
 /// - Feat events
 /// - Item events
 /// - Healing events
