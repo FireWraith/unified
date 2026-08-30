@@ -447,6 +447,20 @@ string NWNX_Object_GetLocalizedDescription(object oObject, int nLanguage, int nG
 /// @param nGender Gender to use, 0 or 1.
 /// @param bIdentified Only for items, identified description or not
 void NWNX_Object_SetLocalizedDescription(object oObject, string sDescription, int nLanguage, int nGender = 0, int bIdentified = 1);
+
+/// @brief Get oObject's pending action queue, front of the queue first.
+/// @param oObject an object.
+/// @return A json array of ACTION_* constants, one element per queued action.
+/// @note Engine actions with no ACTION_* equivalent are reported as -1 rather than
+/// skipped, so an index into the array is always the true position in the queue.
+json NWNX_Object_GetActionQueue(object oObject);
+
+/// @brief Get where nAction sits in oObject's action queue.
+/// @param oObject an object.
+/// @param nAction An ACTION_* constant.
+/// @param nNth Which match to return, 0 being the first one in the queue.
+/// @return The 0-based position in the queue, 0 meaning it is executing now, or -1 if not queued.
+int NWNX_Object_GetActionQueuePosition(object oObject, int nAction, int nNth = 0);
 /// @}
 
 int NWNX_Object_GetLocalVariableCount(object obj)
@@ -948,4 +962,19 @@ void NWNX_Object_SetLocalizedDescription(object oObject, string sDescription, in
     NWNXPushObject(oObject);
 
     NWNXCall(NWNX_Object, sFunc);
+}
+
+json NWNX_Object_GetActionQueue(object oObject)
+{
+    NWNXPushObject(oObject);
+    NWNXCall(NWNX_Object, "GetActionQueue");
+
+    return JsonParse(NWNXPopString());
+}
+
+int NWNX_Object_GetActionQueuePosition(object oObject, int nAction, int nNth = 0)
+{
+    json jFound = JsonFind(NWNX_Object_GetActionQueue(oObject), JsonInt(nAction), nNth);
+
+    return JsonGetType(jFound) == JSON_TYPE_NULL ? -1 : JsonGetInt(jFound);
 }

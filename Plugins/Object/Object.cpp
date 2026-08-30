@@ -4,6 +4,7 @@
 #include "API/CServerAIMaster.hpp"
 #include "API/CServerExoApp.hpp"
 #include "API/CNWSObject.hpp"
+#include "API/CNWSObjectActionNode.hpp"
 #include "API/CNWSScriptVar.hpp"
 #include "API/CNWSScriptVarTable.hpp"
 #include "API/CExoArrayList.hpp"
@@ -1346,4 +1347,23 @@ NWNX_EXPORT ArgumentStack SetLocalizedDescription(ArgumentStack&& args)
     }
 
     return {};
+}
+
+NWNX_EXPORT ArgumentStack GetActionQueue(ArgumentStack&& args)
+{
+    json jQueue = json::array();
+
+    if (auto *pObject = Utils::PopObject(args))
+    {
+        for (auto *pPos = pObject->m_lQueuedActions.GetHeadPos(); pPos; pPos = pPos->pNext)
+        {
+            if (auto *pNode = static_cast<CNWSObjectActionNode*>(pPos->pObject))
+            {
+                const uint16_t nAction = pObject->GetAQActionIDByID(static_cast<uint16_t>(pNode->m_nActionId), false);
+                jQueue.push_back(nAction == 0xFFFF ? -1 : static_cast<int32_t>(nAction));
+            }
+        }
+    }
+
+    return ScriptAPI::Arguments(jQueue.dump());
 }
